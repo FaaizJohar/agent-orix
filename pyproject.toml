@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-orix"
+version = "1.0.0"
+description = "Agent Orix: Interactive Terminal AI & Multi-Action Engine"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Cavrix Team", email = "dev@cavrix.ai"}
+]
+keywords = ["ai-agent", "terminal-ai", "cli", "llm", "orchestrator", "automation"]
+dependencies = [
+    "pydantic>=2.0.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "httpx>=0.27.0",
+    "psutil>=5.9.0",
+    "click>=8.0.0",
+    "rich>=13.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0"
+]
+
+[project.scripts]
+orix = "cie.cli.main:cli"
+agent-orix = "cie.cli.main:cli"

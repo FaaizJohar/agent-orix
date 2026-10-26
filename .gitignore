@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Models and Large Binary Files (Strict Invariant: do not commit GGUF/weights)
+*.gguf
+*.bin
+*.pt
+*.safetensors
+*.onnx
+
+# Environment and Secrets
+.env
+.env.*
+*.pem
+*.key
+*.token
+
+# Cavrix local data, runtime logs, and session history
+data/
+logs/
+.cavrix_sessions/
+.cavrix/
+
+# Testing and Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
