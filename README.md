@@ -1,12 +1,13 @@
 <div align="center">
 
-<img src="https://files.catbox.moe/r1sys4.png" alt="Agent Orix Mascot" width="280" />
+<img src="assets/orix-mascot.png" alt="Agent Orix Mascot" width="280" />
 
 # AGENT ORIX
-### Interactive Terminal AI • Multi-Action Agent Engine • Local-First Intelligence
+### Conversational Terminal AI • Multi-Action Agent Engine • Local-First Intelligence
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Conversational Scenarios](https://img.shields.io/badge/Conversational%20Scenarios-13%2F13%20Verified-brightgreen.svg)](#verified-conversational-scenarios)
 [![Tools](https://img.shields.io/badge/Registered%20Tools-46-green.svg)](#registered-developer-tools)
 [![Workflows](https://img.shields.io/badge/Domain%20Workflows-3%20Active-magenta.svg)](#multi-step-domain-workflows)
 [![Security](https://img.shields.io/badge/HMAC%20Approval-Enforced-red.svg)](#security-and-human-approval-barrier)
@@ -19,21 +20,102 @@
  \___/|_| \_\_____|_| \_| |_|    \___/|_| \_\_____/_/\_\
 ```
 
-**Agent Orix** is a practical, production-grade, interactive terminal-based AI agent designed for developer workflows, complex codebase operations, document synthesis, and multi-step tasks. Powered by the **Cavrix Intelligence Engine (CIE)** and local LLM execution, Agent Orix combines high-speed deterministic routing, bounded multi-action planning, and a cryptographic human approval barrier for safe execution on local machines.
+**Agent Orix** is a practical, conversational terminal-based AI assistant designed for real developer workflows, complex codebase operations, document synthesis, and multi-step tasks.
+
+> **Conversation-First, Not Command-Driven:**  
+> You do **not** need to memorize commands or flags. Just open Orix and talk to it in natural human language—like chatting with a senior engineer who has direct, safe access to your workspace tools.
 
 </div>
 
 ---
 
-## 🌟 Key Features
+## 💬 The Conversational Experience
 
-- 💬 **Interactive Terminal Chat (`orix` / `orix chat`)**: Conversational REPL with rich markdown formatting, streaming, live status spinners, session continuity, and in-terminal slash commands.
-- ⚡ **Multi-Action Agent Engine**: 46 registered developer tools and 3 multi-step automated workflows covering document extraction, codebase repair, and research verification.
-- 🛡️ **Cryptographic Human Approval Barrier**: High-risk consequential actions (file writing, shell execution, desktop actions) require human authorization verified via HMAC-SHA256 replay-protected tokens.
-- 🧠 **Anti-Sycophancy & Truth Preservation**: Built-in verification engine prevents sycophantic hallucinations and factually incorrect concessions.
-- 💾 **Persistent Session Continuity**: Bounded conversation memory with automatic secret redaction (`sk-live-...`, tokens, passwords masked automatically).
-- 🌐 **Remote Client Mode (`orix connect`)**: Connect to remote, authenticated CIE instances across devices without exposing private infrastructure.
-- 🩺 **Built-in System Diagnostics (`orix doctor`)**: Instant verification of Python environment, host RAM/disk, Ollama service, model integrity, tool registry, and HMAC tokens.
+When you launch `orix`, you are greeted by an interactive conversational partner:
+
+```text
+======================================================================
+AGENT ORIX - Your AI-powered workspace
+Type your request naturally, or use /help for optional shortcuts.
+======================================================================
+
+Hey! I'm Orix. What are we working on today?
+
+You > explain this project to me
+
+Orix >
+ [Inspecting workspace...]
+ [Reading important files...]
+ [Analyzing project architecture...]
+
+This repository is **Agent Orix**, a local-first conversational terminal AI engine.
+It features:
+- A conversational intent interpreter that executes real workspace actions from plain English.
+- 46 registered developer tools spanning AST validation, git, document extraction, and file inspection.
+- A cryptographic HMAC approval gate for modifying files or executing shell commands.
+- 3 domain workflows for automated document intelligence, code repair, and research verification.
+
+You > run the tests
+
+Orix >
+ [Locating test suites...]
+ [Running pytest suite...]
+
+Tests completed:
+- tests/test_conversational_scenarios.py: 13 passed
+- tests/test_phase18_orix_cli.py: 11 passed
+Total: 24 passed in 18.2s. All systems green!
+
+You > update the version in pyproject.toml to 1.1.0
+
+Orix >
+ [Generating diff for pyproject.toml...]
+
+[Approval Request] Consequential Action Required
+Tool: file_write_bounded
+Target: pyproject.toml
+Action: Update version to "1.1.0"
+Token: 9e4f2b18...
+
+Allow this action? [y/N]: y
+ [Applying bounded file modification...]
+pyproject.toml successfully updated to version 1.1.0.
+```
+
+---
+
+## 🌟 Key Capabilities
+
+- 🗣️ **Natural Language Intent Parsing**: Ask Orix to inspect repos, find bugs, trace functions, summarize documents, or run tests using everyday language.
+- 🔄 **Contextual Follow-ups**: Seamlessly resolves conversational references like *"Do the first one"*, *"Explain that error"*, or *"Can you fix that too?"*.
+- ⏱️ **Real-Time Step-by-Step Progress**: Transparent progress feedback (`[Inspecting workspace...]`, `[Reading important files...]`, `[Tracing application flow...]`) so you always know what Orix is doing.
+- 🛡️ **Cryptographic Human Approval Barrier**: Consequential actions (file writing, shell execution, destructive tasks) require explicit user consent validated by HMAC-SHA256 replay-protected tokens.
+- 🛑 **Graceful Interruptions & Recovery**: Safe handling of `Ctrl+C` cancellation, tool timeouts, and non-fatal runtime errors with contextual explanations.
+- 🔒 **Zero-Trust File Containment**: Strict boundary checks prevent access outside authorized project directories, preventing path traversal attacks.
+- 💾 **Session Continuity with Secret Redaction**: Conversation memory persists across sessions, while API keys, tokens, and passwords are automatically redacted.
+- 🩺 **Built-in System Diagnostics (`orix doctor`)**: Instant verification of Python environment, host RAM/disk, Ollama service, model integrity, tool registry, and security gates.
+
+---
+
+## 🧪 Verified Conversational Scenarios
+
+Agent Orix includes a comprehensive test suite (`tests/test_conversational_scenarios.py`) validating **13 distinct end-to-end conversational workflows**:
+
+| Scenario | Objective | Status |
+|---|---|---|
+| **Scenario 1** | Normal conversation & multi-turn dialogue | Verified (PASS) |
+| **Scenario 2** | Complex codebase inspection & explanation ("explain this project") | Verified (PASS) |
+| **Scenario 3** | Contextual follow-up resolution ("explain the second file") | Verified (PASS) |
+| **Scenario 4** | Autonomous file inspection with tool selection | Verified (PASS) |
+| **Scenario 5** | File modification with cryptographic human approval prompt | Verified (PASS) |
+| **Scenario 6** | Autonomous test runner & diagnostic reporting | Verified (PASS) |
+| **Scenario 7** | Clean task interruption (`Ctrl+C` / cancel without corruption) | Verified (PASS) |
+| **Scenario 8** | Runtime failure graceful recovery & transparent reporting | Verified (PASS) |
+| **Scenario 9** | Unauthorized filesystem containment & path traversal defense | Verified (PASS) |
+| **Scenario 10** | Rejection and containment of destructive operations (`rm -rf`) | Verified (PASS) |
+| **Scenario 11** | Conversation session restoration and history recall | Verified (PASS) |
+| **Scenario 12** | Remote authentication, bearer validation, and permission checks | Verified (PASS) |
+| **Scenario 13** | Standalone installation, clean import readiness, and zero missing deps | Verified (PASS) |
 
 ---
 
@@ -50,15 +132,16 @@
              [ Local Execution ]                               [ Remote Mode ]
                      |                                                 |
        +-------------v--------------+                    +-------------v--------------+
-       |   CIE Deterministic Router |                    |    Remote CIE Backend      |
-       +-------------+--------------+                    |    (FastAPI / Bearer Auth) |
-                     |                                   +----------------------------+
+       |   Conversational Agent     |                    |    Remote CIE Backend      |
+       |  (Natural Intent Parser)   |                    |    (FastAPI / Bearer Auth) |
+       +-------------+--------------+                    +----------------------------+
+                     |
        +-------------v--------------+
        | Anti-Sycophancy Gate       |
        +-------------+--------------+
                      |
        +-------------v--------------+
-       | Adaptive Planner & Engine  |
+       | Dynamic Skill Selector     |
        +-------------+--------------+
                      |
        +-------------+------------------------------------+
@@ -128,49 +211,32 @@ Output:
 
 ---
 
-## 💻 CLI Command Reference
+## 💻 Usage Reference
 
-| Command | Description |
-|---|---|
-| `orix` or `orix chat` | Launch interactive terminal chat session |
-| `orix run "<prompt>"` | Single-shot natural language instruction execution |
-| `orix doctor` | Run comprehensive system diagnostics |
-| `orix status` | View runtime metrics, memory, model, and tool status |
-| `orix tools list` | View table of all 46 registered tools with permissions |
-| `orix config` | Display active settings with secrets safely redacted |
-| `orix sessions list` | List past conversation sessions and message history |
-| `orix sessions clear <id>` | Delete a saved session |
-| `orix connect <url>` | Test connection and latency to a remote CIE server |
-| `orix --version` | Output version information |
-| `orix --help` | View full command options |
-
-### Launch Interactive Chat
+### Launch Interactive Conversational Terminal
 
 ```bash
 # Default interactive chat
 orix
 
 # Resume an existing session
-orix chat --session-id session_1793025452
+orix chat --session-id <session_id>
 
-# Suppress ASCII banner for clean scripting
-orix chat --no-banner
-
-# Display full mascot ASCII art
-orix chat --mascot
+# Run in script mode with single instruction
+orix run "Summarize recent git commits"
 ```
 
-### In-Chat Slash Commands
+### Optional Convenience Slash Commands
 
-While in interactive mode, type slash commands directly into the prompt:
+Commands are strictly optional conveniences. Everything can be requested in plain English:
 
-- `/help` - Show available commands
+- `/help` - Show quick cheat-sheet
 - `/tools` - List registered skills and tools
 - `/status` - Display engine and session status
 - `/doctor` - Run system diagnostics
 - `/history` - View recent message turns
-- `/workflow <doc|code|research> <target>` - Execute multi-step domain workflow
-- `/clear` - Clear terminal screen and start fresh context
+- `/workflow <doc|code|research> <target>` - Directly trigger a domain workflow
+- `/clear` - Clear terminal screen and reset context
 - `/exit` or `/quit` - Cleanly exit the session
 
 ---

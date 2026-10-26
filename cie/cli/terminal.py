@@ -1,6 +1,7 @@
 """
-Interactive Terminal Interface for Agent Orix (`orix` / `orix chat`).
-Provides rich terminal styling, session continuity, slash commands, and approval prompts.
+Interactive Conversational Terminal for Agent Orix (`orix` / `orix chat`).
+Provides a human-first conversational AI interface with live progress indicators,
+multi-turn context, and cryptographic approval barriers.
 """
 
 import asyncio
@@ -17,25 +18,26 @@ from rich.prompt import Prompt, Confirm
 from cie.cli.banner import render_banner
 from cie.cli.client import BaseAgentClient, LocalAgentClient, RemoteAgentClient
 from cie.cli.session import SessionManager, SessionState
+from cie.cli.agent import ConversationalAgent
 from cie.security_tokens import compute_action_token
 
 
 class TerminalChat:
     """
-    Rich interactive terminal session for Agent Orix.
+    Conversation-first interactive terminal for Agent Orix.
     """
 
     def __init__(
         self,
-        client: BaseAgentClient,
+        client: Optional[BaseAgentClient] = None,
         session_id: Optional[str] = None,
         workspace: Optional[str] = None,
         no_banner: bool = False,
         show_mascot: bool = False,
     ):
         self.console = Console()
-        self.client = client
-        self.workspace = workspace or os.getcwd()
+        self.workspace = os.path.abspath(workspace or os.getcwd())
+        self.client = client or LocalAgentClient()
         self.no_banner = no_banner
         self.show_mascot = show_mascot
 
@@ -46,19 +48,32 @@ class TerminalChat:
         else:
             self.session = self.session_mgr.create_session(workspace=self.workspace)
 
+        # Conversational Agent Driver
+        self.agent = ConversationalAgent(client=self.client, workspace=self.workspace)
+
+    def print_startup_greeting(self):
+        """Displays friendly conversational startup header."""
+        header_panel = Panel(
+            "[bold white]AGENT ORIX[/bold white]\n[cyan]Your AI-powered workspace[/cyan]",
+            border_style="cyan",
+            padding=(0, 4),
+        )
+        self.console.print(header_panel)
+        self.console.print("\n[bold white]Hey! I'm Orix. What are we working on today?[/bold white]\n")
+
     def print_help(self):
-        table = Table(title="Agent Orix Interactive Commands", show_header=True, header_style="bold cyan")
-        table.add_column("Command", style="bold yellow", width=18)
-        table.add_column("Description")
-        table.add_row("/help", "Show this help table")
-        table.add_row("/clear", "Clear terminal screen and start fresh session context")
-        table.add_row("/history", "Display recent conversation turns in current session")
+        table = Table(title="Agent Orix Conversational Shortcuts", show_header=True, header_style="bold cyan")
+        table.add_column("Shortcut", style="bold yellow", width=18)
+        table.add_column("Purpose")
+        table.add_row("/help", "Show optional convenience commands")
+        table.add_row("/clear", "Clear terminal screen and start fresh context")
+        table.add_row("/history", "Display conversation history in current session")
         table.add_row("/tools", "List available developer skills and action tools")
-        table.add_row("/workflow <type>", "Trigger multi-step workflow (doc, code, research)")
         table.add_row("/status", "Show engine health, RAM, model, and active session")
         table.add_row("/doctor", "Run comprehensive system diagnostics")
-        table.add_row("/exit, /quit", "Exit the interactive session gracefully")
+        table.add_row("/exit, /quit", "Exit the conversation gracefully")
         self.console.print(table)
+        self.console.print("\n[dim]Note: You do not need to memorize commands. You can simply chat with Orix naturally![/dim]")
 
     def print_history(self):
         history = self.session_mgr.get_history(self.session.session_id, limit=20)
@@ -68,7 +83,8 @@ class TerminalChat:
         self.console.print(f"[bold cyan]Session History ({len(history)} messages):[/bold cyan]")
         for msg in history:
             role_style = "bold green" if msg.role == "user" else "bold cyan"
-            self.console.print(f"[{role_style}]{msg.role.upper()}[/{role_style}] [dim]({time.strftime('%H:%M:%S', time.localtime(msg.timestamp))}):[/dim]")
+            label = "You" if msg.role == "user" else "Orix"
+            self.console.print(f"[{role_style}]{label}[/{role_style}] [dim]({time.strftime('%H:%M:%S', time.localtime(msg.timestamp))}):[/dim]")
             self.console.print(Markdown(msg.content))
             self.console.print("-" * 40, style="dim")
 
@@ -77,7 +93,7 @@ class TerminalChat:
         cmd = parts[0].lower()
 
         if cmd in ("/exit", "/quit"):
-            self.console.print("[cyan]Exiting Agent Orix. Goodbye![/cyan]")
+            self.console.print("[cyan]Exiting Agent Orix. Catch you later![/cyan]")
             return False
 
         if cmd == "/help":
@@ -87,7 +103,8 @@ class TerminalChat:
         if cmd == "/clear":
             self.console.clear()
             self.session = self.session_mgr.create_session(workspace=self.workspace)
-            self.console.print(f"[green]Session cleared. New session ID: {self.session.session_id}[/green]")
+            self.agent = ConversationalAgent(client=self.client, workspace=self.workspace)
+            self.print_startup_greeting()
             return True
 
         if cmd == "/history":
@@ -128,33 +145,14 @@ class TerminalChat:
             run_diagnostics(self.console)
             return True
 
-        if cmd == "/workflow":
-            if len(parts) < 2:
-                self.console.print("[yellow]Usage: /workflow <document|codebase|research> [target][/yellow]")
-                return True
-            wf_type = parts[1]
-            target = parts[2] if len(parts) > 2 else ""
-            params = {"document_path": target, "file_path": target, "topic": target}
-            self.console.print(f"[bold cyan]Running workflow: {wf_type.upper()}...[/bold cyan]")
-            try:
-                with self.console.status("[bold cyan]Executing multi-step workflow...[/bold cyan]", spinner="dots"):
-                    wf_res = await self.client.run_workflow(wf_type, params)
-                summary = wf_res.get("summary", "")
-                success = wf_res.get("success", False)
-                style = "green" if success else "red"
-                self.console.print(Panel(summary or str(wf_res), title=f"Workflow Result: {wf_type}", border_style=style))
-            except Exception as e:
-                self.console.print(f"[bold red]Workflow Error:[/bold red] {e}")
-            return True
-
-        self.console.print(f"[yellow]Unknown command '{cmd}'. Type /help for available commands.[/yellow]")
+        self.console.print(f"[yellow]Unknown shortcut '{cmd}'. Type /help for optional shortcuts, or talk naturally.[/yellow]")
         return True
 
     def prompt_for_approval(self, action_name: str, params: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
         self.console.print(Panel(
             f"[bold red]CRITICAL ACTION CONFIRMATION[/bold red]\n\n"
             f"Action: [bold yellow]{action_name}[/bold yellow]\n"
-            f"Parameters: [dim]{params}[/dim]\n\n"
+            f"Target Details: [dim]{params}[/dim]\n\n"
             f"This action may modify files or execute system processes in: {self.workspace}",
             border_style="red",
             title="Human Approval Barrier",
@@ -167,65 +165,50 @@ class TerminalChat:
 
     async def start(self):
         """
-        Runs the interactive chat loop.
+        Runs the persistent conversational chat loop.
         """
         if not self.no_banner:
-            health = await self.client.check_health()
-            render_banner(
-                self.console,
-                compact=True,
-                show_mascot=self.show_mascot,
-                model_name=health.get("model_name", "cavrix-code:latest"),
-                tools_count=health.get("tool_count", 46),
-                remote_url=getattr(self.client, "endpoint_url", None),
-            )
-
-        self.console.print(f"[dim]Active Session: {self.session.session_id} | Workspace: {self.workspace}[/dim]\n")
+            self.print_startup_greeting()
+        else:
+            self.console.print(f"[dim]Agent Orix active in workspace: {self.workspace}[/dim]\n")
 
         while True:
             try:
-                user_input = Prompt.ask("\n[bold green]orix[/bold green] [cyan]>[/cyan]").strip()
+                user_input = Prompt.ask("\n[bold green]You[/bold green] [cyan]>[/cyan]").strip()
             except (KeyboardInterrupt, EOFError):
-                self.console.print("\n[cyan]Session ended. Goodbye![/cyan]")
+                self.console.print("\n[cyan]Session ended. See you next time![/cyan]")
                 break
 
             if not user_input:
                 continue
 
+            # Optional shortcut handling
             if user_input.startswith("/"):
                 keep_going = await self.handle_slash_command(user_input)
                 if not keep_going:
                     break
                 continue
 
-            # Record turn in session memory
+            # Record turn in persistent session storage
             self.session_mgr.add_message(self.session.session_id, "user", user_input)
 
-            # Execution with spinner status
+            # Progress printer callback
+            def show_progress(step_msg: str):
+                self.console.print(f"[dim cyan]       {step_msg}[/dim cyan]")
+
+            # Run conversational agent loop
             try:
-                with self.console.status("[bold cyan]Agent Orix is reasoning...[/bold cyan]", spinner="dots"):
-                    resp = await self.client.chat(
-                        prompt=user_input,
-                        session_id=self.session.session_id,
-                        metadata={"workspace": self.workspace},
-                    )
-
-                content = resp.get("content", "")
-                category = resp.get("category", "GENERAL")
-                exec_time = resp.get("execution_time_ms", 0.0)
-                status = resp.get("status", "COMPLETED")
-
-                # Format and render response
-                self.console.print(f"\n[bold cyan]Agent Orix[/bold cyan] [dim]({category} • {exec_time:.0f}ms)[/dim]:")
-                self.console.print(Markdown(content))
-
-                # Record assistant turn in session
-                self.session_mgr.add_message(
-                    self.session.session_id,
-                    "assistant",
-                    content,
-                    metadata={"category": category, "execution_time_ms": exec_time, "status": status},
+                self.console.print("[bold cyan]Orix[/bold cyan] [cyan]>[/cyan] ", end="")
+                reply = await self.agent.handle_message(
+                    user_text=user_input,
+                    on_progress=show_progress,
+                    on_approval=self.prompt_for_approval,
                 )
+                self.console.print("")
+                self.console.print(Markdown(reply))
+
+                # Save assistant response in persistent session storage
+                self.session_mgr.add_message(self.session.session_id, "assistant", reply)
 
             except Exception as e:
-                self.console.print(f"[bold red]Execution Error:[/bold red] {e}")
+                self.console.print(f"\n[bold red]Orix encountered an error:[/bold red] {e}")
