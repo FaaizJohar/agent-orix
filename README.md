@@ -1,6 +1,8 @@
 <div align="center">
 
-<img src="assets/orix-mascot.png" alt="Agent Orix Mascot" width="280" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/assets/orix-mascot.png" alt="Agent Orix Mascot" width="280" />
+</p>
 
 # AGENT ORIX
 ### CavrixCode Agent Orix • Conversational Terminal AI • Multi-Action Agent Engine • Local-First Intelligence
@@ -172,51 +174,40 @@ Agent Orix includes a comprehensive test suite (`tests/test_conversational_scena
 
 ---
 
-### 2. Windows One-Click Installation (Recommended)
+### 2. One-Click Installation (All Devices & Operating Systems)
 
-No complicated virtual environment setup or command-line gymnastics required:
+Agent Orix includes native, zero-friction one-click installers for **Windows**, **macOS**, and **Linux**, as well as a universal cross-platform installer:
 
-1. **Clone or Download the Repository**:
-   ```cmd
-   git clone https://github.com/FaaizJohar/agent-orix.git
-   cd agent-orix
+#### 🪟 Windows (One-Click)
+1. Double-click `Install-Orix.bat` (or `install.bat`, or run `.\Install-Orix.bat` from CMD/PowerShell).
+2. **Launch anytime**: Double-click `run-orix.bat` or your Desktop shortcut!
+3. **Uninstall**: Double-click `Uninstall-Orix.bat` (or `uninstall.bat`).
+
+#### 🍎 macOS & 🐧 Linux (One-Click)
+1. In your terminal or file manager, run the one-click installer:
+   ```bash
+   ./install.sh
    ```
+2. **Launch anytime**:
+   ```bash
+   ./run-orix.sh
+   ```
+3. **Uninstall**: Run `./uninstall.sh`.
 
-2. **Run the One-Click Installer**:
-   Double-click `Install-Orix.bat` (or run `.\Install-Orix.bat` from Command Prompt / PowerShell).
-
-   **What `Install-Orix.bat` does automatically:**
-   - Detects and verifies Python 3.10+ (64-bit).
-   - Creates an isolated virtual environment (`.venv`) so your system Python is untouched.
-   - Installs all dependencies in editable mode (`pip install -e .`).
-   - Verifies the local Ollama service and `cavrix-code:latest` model (without downloading massive weights silently).
-   - Generates the `run-orix.bat` desktop launcher and an optional Desktop shortcut.
-
-3. **Start Conversing**:
-   Double-click `run-orix.bat` or your Desktop shortcut!
-
-> **Uninstallation**: Double-click `Uninstall-Orix.bat` at any time to cleanly remove `.venv`, generated launchers, and Desktop shortcuts.
+#### 🌐 Universal Cross-Platform (Any OS)
+If you prefer running a single cross-platform script:
+```bash
+python install.py
+```
 
 ---
 
-### 3. Manual / Cross-Platform Installation (Linux & macOS)
-
-For Linux, macOS, or manual setup:
-
-```bash
-git clone https://github.com/FaaizJohar/agent-orix.git
-cd agent-orix
-
-# Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies in editable mode
-pip install -e .
-
-# Run diagnostics
-orix doctor
-```
+### 3. What the One-Click Installers Do Automatically
+- **Environment Detection**: Detects and validates 64-bit Python 3.10+ without modifying your host system.
+- **Full Isolation**: Creates a dedicated `.venv` virtual environment so your global Python packages remain completely untouched.
+- **Dependency Linking**: Installs all core packages and CLI entry points in editable mode (`pip install -e .`).
+- **Runtime Verification**: Checks local Ollama connectivity (`127.0.0.1:11434`) and verifies `cavrix-code:latest` model readiness without triggering unexpected gigabyte downloads.
+- **Convenient Launchers**: Generates dedicated `run-orix.bat` (Windows) and `run-orix.sh` (macOS/Linux) launchers for instantaneous startup.
 
 ---
 
