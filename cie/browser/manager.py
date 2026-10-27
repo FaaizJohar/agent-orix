@@ -14,7 +14,10 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from playwright.async_api import Browser, BrowserContext, Page, Playwright, Route, Request, async_playwright
+try:
+    from playwright.async_api import Browser, BrowserContext, Page, Playwright, Route, Request, async_playwright
+except ImportError:
+    Browser = BrowserContext = Page = Playwright = Route = Request = async_playwright = None
 
 from cie.browser.schemas import (
     BrowserBackOutput,

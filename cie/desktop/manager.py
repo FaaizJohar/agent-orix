@@ -15,7 +15,10 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import psutil
-from PIL import Image, ImageDraw, ImageFont
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    Image = ImageDraw = ImageFont = None
 
 from cie.desktop.schemas import (
     DesktopClickInput,

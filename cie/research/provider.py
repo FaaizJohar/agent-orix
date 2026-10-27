@@ -6,7 +6,10 @@ from abc import ABC, abstractmethod
 import urllib.parse
 from typing import List, Optional, Dict, Any
 import httpx
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 
 from cie.research.schemas import SearchResult
 
@@ -63,6 +66,8 @@ class DuckDuckGoHtmlProvider(SearchProvider):
                 if resp.status_code != 200:
                     raise SearchProviderError(f"DuckDuckGo returned HTTP {resp.status_code}")
 
+                if BeautifulSoup is None:
+                    raise SearchProviderError("bs4 is required for HTML parsing but not installed.")
                 soup = BeautifulSoup(resp.text, "html.parser")
                 results: List[SearchResult] = []
 

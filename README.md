@@ -13,11 +13,14 @@
 [![Security](https://img.shields.io/badge/HMAC%20Approval-Enforced-red.svg)](#security-and-human-approval-barrier)
 
 ```text
-  ___  ____  _____ _   _ _____    ___  ____  _____  __
- / _ \|  _ \|_   _| \ | |_   _|  / _ \|  _ \|_   _\ \/ /
-| | | | |_) | | | |  \| | | |   | | | | |_) | | |  \  / 
-| |_| |  _ < _| |_| |\  | | |   | |_| |  _ < _| |_ /  \ 
- \___/|_| \_\_____|_| \_| |_|    \___/|_| \_\_____/_/\_\
+.eeeeee...eeeeee..eeeeee.eeeeeee..eeeeeeeee.....eeeeee..eeeeeee..eee.eee..eee....
+@@@@@@@@:@@@@@@@@:@@@@@@:@@@@@@@@:@@@@@@@@@::::@@@@@@@@:@@@@@@@@:@@@:@@@::@@@::::
+%%%--%%%-%%%------%%%----%%%--%%%----%%%-------%%%--%%%-%%%--%%%-%%%-%%%--%%%----
+&&&&&&&&+&&&++++++&&&&&++&&&++&&&++++&&&+++++++&&&++&&&+&&&&&&&++&&&++&&&&&&+++++
+||||||||*|||*||||*|||||**|||**|||****|||*******|||**|||*||||||***|||**||||||*****
+!!!==!!!=!!!==!!!=!!!====!!!==!!!====!!!=======!!!==!!!=!!!=!!!==!!!=!!!==!!!====
+:::##:::#::::::::#::::::#:::##:::####:::#######::::::::#:::##:::#:::#:::##:::####
+...@@...@@......@@......@...@@...@@@@...@@@@@@@@......@@...@@...@...@...@@...@@@@
 ```
 
 **Agent Orix** is a practical, conversational terminal-based AI assistant designed for real developer workflows, complex codebase operations, document synthesis, and multi-step tasks.
@@ -164,28 +167,68 @@ Agent Orix includes a comprehensive test suite (`tests/test_conversational_scena
 
 ### 1. Prerequisites
 
-- Python 3.10 or higher (64-bit)
-- [Ollama](https://ollama.com/) running locally with target model `cavrix-code:latest` (or compatible model).
+- **Python 3.10+ (64-bit)** ([python.org](https://www.python.org/downloads/)) - Ensure *"Add python.exe to PATH"* is checked during installation.
+- **[Ollama](https://ollama.com/)** running locally with target model `cavrix-code:latest` (or your preferred local model).
 
-### 2. Installation
+---
 
-Clone the repository and install in editable mode:
+### 2. Windows One-Click Installation (Recommended)
+
+No complicated virtual environment setup or command-line gymnastics required:
+
+1. **Clone or Download the Repository**:
+   ```cmd
+   git clone https://github.com/FaaizJohar/agent-orix.git
+   cd agent-orix
+   ```
+
+2. **Run the One-Click Installer**:
+   Double-click `Install-Orix.bat` (or run `.\Install-Orix.bat` from Command Prompt / PowerShell).
+
+   **What `Install-Orix.bat` does automatically:**
+   - Detects and verifies Python 3.10+ (64-bit).
+   - Creates an isolated virtual environment (`.venv`) so your system Python is untouched.
+   - Installs all dependencies in editable mode (`pip install -e .`).
+   - Verifies the local Ollama service and `cavrix-code:latest` model (without downloading massive weights silently).
+   - Generates the `run-orix.bat` desktop launcher and an optional Desktop shortcut.
+
+3. **Start Conversing**:
+   Double-click `run-orix.bat` or your Desktop shortcut!
+
+> **Uninstallation**: Double-click `Uninstall-Orix.bat` at any time to cleanly remove `.venv`, generated launchers, and Desktop shortcuts.
+
+---
+
+### 3. Manual / Cross-Platform Installation (Linux & macOS)
+
+For Linux, macOS, or manual setup:
 
 ```bash
 git clone https://github.com/FaaizJohar/agent-orix.git
 cd agent-orix
 
-# Install dependencies and console script
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies in editable mode
 pip install -e .
+
+# Run diagnostics
+orix doctor
 ```
 
-*Windows Users:* You can immediately run `.\orix.bat` or `.\orix.ps1` from the project directory without installation!
+---
 
-### 3. Verify System Health
+### 4. Verify System Health
 
 Run the diagnostic suite to ensure all dependencies, tools, and models are operational:
 
 ```bash
+# Using launcher
+run-orix.bat doctor
+
+# Or directly
 orix doctor
 ```
 

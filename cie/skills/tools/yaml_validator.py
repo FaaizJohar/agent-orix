@@ -4,8 +4,12 @@ Safely parses YAML content using yaml.safe_load and checks syntax.
 """
 
 from typing import Optional
-import yaml
 from pydantic import BaseModel, Field
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 
 class YamlValidateInput(BaseModel):
@@ -24,6 +28,12 @@ def yaml_validate(content: str) -> YamlValidateOutput:
     Safely validates YAML content using yaml.safe_load.
     Never uses unsafe or full loader.
     """
+    if yaml is None:
+        return YamlValidateOutput(
+            valid=False,
+            error="YAML validation is unavailable: pyyaml is not installed. Run 'pip install pyyaml'.",
+        )
+
     try:
         data = yaml.safe_load(content)
     except yaml.YAMLError as ye:

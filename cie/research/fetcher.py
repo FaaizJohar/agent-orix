@@ -8,7 +8,10 @@ import socket
 import urllib.parse
 from typing import Any, Dict, List, Optional, Tuple
 import httpx
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 
 
 class SecurityValidationError(Exception):
@@ -177,6 +180,9 @@ class SafeWebFetcher:
         """
         Extracts clean, readable text from HTML, stripping all scripts, styles, and chrome noise.
         """
+        if BeautifulSoup is None:
+            clean = re.sub(r"<[^>]+>", " ", html_text)
+            return {"title": "Web Page", "pub_date": None, "author": None, "main_text": " ".join(clean.split())[:10000], "excerpt": " ".join(clean.split())[:200]}
         soup = BeautifulSoup(html_text, "html.parser")
 
         # 1. Extract Page Title

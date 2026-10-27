@@ -52,13 +52,8 @@ class TerminalChat:
         self.agent = ConversationalAgent(client=self.client, workspace=self.workspace)
 
     def print_startup_greeting(self):
-        """Displays friendly conversational startup header."""
-        header_panel = Panel(
-            "[bold white]AGENT ORIX[/bold white]\n[cyan]Your AI-powered workspace[/cyan]",
-            border_style="cyan",
-            padding=(0, 4),
-        )
-        self.console.print(header_panel)
+        """Displays friendly conversational startup header with gradient ASCII banner."""
+        render_banner(self.console, show_mascot=self.show_mascot)
         self.console.print("\n[bold white]Hey! I'm Orix. What are we working on today?[/bold white]\n")
 
     def print_help(self):
