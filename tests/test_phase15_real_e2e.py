@@ -18,7 +18,7 @@ import pytest
 from starlette.testclient import TestClient
 
 # Ensure CIE on sys.path
-CIE_ROOT = Path("E:/cavrix_cie")
+CIE_ROOT = Path(__file__).resolve().parent.parent
 if str(CIE_ROOT) not in sys.path:
     sys.path.insert(0, str(CIE_ROOT))
 

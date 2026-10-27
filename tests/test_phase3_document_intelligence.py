@@ -8,6 +8,7 @@ FTS5 retrieval relevance, grounded question answering, and citation verification
 import os
 import tempfile
 import pytest
+pytest.importorskip("docx")
 from pathlib import Path
 
 from cie.skills.registry import get_default_registry

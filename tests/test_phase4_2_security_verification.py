@@ -20,6 +20,7 @@ import time
 from unittest.mock import patch, MagicMock
 
 import pytest
+pytest.importorskip("playwright")
 from pydantic import BaseModel
 
 from cie.browser.manager import BrowserManager, get_browser_manager

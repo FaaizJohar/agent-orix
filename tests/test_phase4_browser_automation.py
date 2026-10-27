@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+pytest.importorskip("playwright")
 
 from cie.browser.manager import BrowserManager, get_browser_manager
 from cie.browser.schemas import (

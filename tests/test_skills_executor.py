@@ -125,8 +125,10 @@ async def test_permission_approval_required(executor):
     assert res.success is False
     assert "requires explicit user approval" in res.error
 
-    # Now execute with user approval
+    # Now execute with user approval and valid action token
+    from cie.security_tokens import compute_action_token
     req.approved_by_user = True
+    req.approval_token = compute_action_token("local_write_tool", {"content": "test file"})
     res_approved = await executor.execute(req)
     assert res_approved.success is True
     assert res_approved.result == {"written": 9}

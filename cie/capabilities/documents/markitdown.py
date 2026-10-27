@@ -77,7 +77,12 @@ class MarkItDownAdapter:
 
         # Native fallback if upstream is unavailable
         import re
-        clean = re.sub(r"<[^>]+>", " ", content)
+        html = content
+        html = re.sub(r"<h1[^>]*>(.*?)</h1>", r"# \1\n\n", html, flags=re.IGNORECASE | re.DOTALL)
+        html = re.sub(r"<h2[^>]*>(.*?)</h2>", r"## \1\n\n", html, flags=re.IGNORECASE | re.DOTALL)
+        html = re.sub(r"<h3[^>]*>(.*?)</h3>", r"### \1\n\n", html, flags=re.IGNORECASE | re.DOTALL)
+        html = re.sub(r"<p[^>]*>(.*?)</p>", r"\1\n\n", html, flags=re.IGNORECASE | re.DOTALL)
+        clean = re.sub(r"<[^>]+>", " ", html)
         md_text = "\n".join(l.strip() for l in clean.splitlines() if l.strip())
         return MarkItDownResult(
             markdown=md_text,

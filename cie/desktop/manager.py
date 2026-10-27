@@ -270,29 +270,45 @@ class DesktopManager:
             logger.debug(f"Direct BitBlt screen capture unavailable ({e}); generating safe diagnostic visual frame.")
 
         # 2. Safe Fallback Boundary for headless/service execution
-        if img is None:
-            is_synthetic = True
-            img = Image.new("RGB", (width, height), color=(24, 24, 30))
-            draw = ImageDraw.Draw(img)
-            draw.rectangle([(10, 10), (width - 10, height - 10)], outline=(60, 60, 75), width=2)
-            draw.text((20, 20), "CAVRIXCODE DESKTOP DIAGNOSTIC FRAME", fill=(200, 200, 220))
-            draw.text((20, 45), f"Resolution: {width}x{height}", fill=(150, 150, 170))
-            draw.text((20, 70), f"Active Window: {target_win or 'None (Headless/Detached)'}", fill=(150, 150, 170))
-            draw.text((20, 95), "Status: OS Display DC detached. Operating in safe diagnostic mode.", fill=(100, 180, 255))
-
-        # 3. Save PNG artifact
         timestamp = int(time.time() * 1000)
         safe_prefix = re.sub(r"[^a-zA-Z0-9_\-]", "", filename_prefix)[:30] or "snap"
         filename = f"{safe_prefix}_{timestamp}.png"
         file_path = str(self.screenshot_dir / filename)
-        img.save(file_path, "PNG")
+
+        if img is None:
+            is_synthetic = True
+            if Image is not None and ImageDraw is not None:
+                img = Image.new("RGB", (width, height), color=(24, 24, 30))
+                draw = ImageDraw.Draw(img)
+                draw.rectangle([(10, 10), (width - 10, height - 10)], outline=(60, 60, 75), width=2)
+                draw.text((20, 20), "CAVRIXCODE DESKTOP DIAGNOSTIC FRAME", fill=(200, 200, 220))
+                draw.text((20, 45), f"Resolution: {width}x{height}", fill=(150, 150, 170))
+                draw.text((20, 70), f"Active Window: {target_win or 'None (Headless/Detached)'}", fill=(150, 150, 170))
+                draw.text((20, 95), "Status: OS Display DC detached. Operating in safe diagnostic mode.", fill=(100, 180, 255))
+                img.save(file_path, "PNG")
+                img_w, img_h = img.width, img.height
+            else:
+                import struct, zlib
+                raw_data = b"".join(b"\x00" + b"\x18\x18\x1e" * width for _ in range(height))
+                compressed = zlib.compress(raw_data)
+                ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+                def chunk(chunk_type, data):
+                    c = chunk_type + data
+                    return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c))
+                png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", compressed) + chunk(b"IEND", b"")
+                with open(file_path, "wb") as f:
+                    f.write(png)
+                img_w, img_h = width, height
+        else:
+            img.save(file_path, "PNG")
+            img_w, img_h = img.width, img.height
 
         size_bytes = os.path.getsize(file_path) if os.path.exists(file_path) else 0
 
         return DesktopScreenshotOutput(
             file_path=file_path,
-            width=img.width,
-            height=img.height,
+            width=img_w,
+            height=img_h,
             size_bytes=size_bytes,
             window_captured=target_win,
             is_synthetic=is_synthetic,

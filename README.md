@@ -3,7 +3,7 @@
 <img src="assets/orix-mascot.png" alt="Agent Orix Mascot" width="280" />
 
 # AGENT ORIX
-### Conversational Terminal AI • Multi-Action Agent Engine • Local-First Intelligence
+### CavrixCode Agent Orix • Conversational Terminal AI • Multi-Action Agent Engine • Local-First Intelligence
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
