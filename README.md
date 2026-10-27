@@ -174,35 +174,49 @@ Agent Orix includes a comprehensive test suite (`tests/test_conversational_scena
 
 ---
 
-### 2. One-Click Installation (All Devices & Operating Systems)
+### 2. One-Line Instant Install (No Manual Cloning Needed)
 
-Agent Orix includes native, zero-friction one-click installers for **Windows**, **macOS**, and **Linux**, as well as a universal cross-platform installer:
+You do **not** even need to download or clone the repository manually. Simply paste the one-line command into your terminal:
+
+#### 🍎 macOS & 🐧 Linux (One-Line Bash Install)
+```bash
+curl -sSL https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.sh | bash
+```
+
+#### 🪟 Windows (One-Line PowerShell Install)
+```powershell
+irm https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.ps1 | iex
+```
+*(Or in Windows Command Prompt / Run: `powershell -c "irm https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.ps1 | iex"`)*
+
+---
+
+### 3. One-Click Installers (For Cloned or Downloaded Folders)
+
+If you have downloaded or cloned the repository locally:
 
 #### 🪟 Windows (One-Click)
-1. Double-click `Install-Orix.bat` (or `install.bat`, or run `.\Install-Orix.bat` from CMD/PowerShell).
+1. Double-click `Install-Orix.bat` (or `install.bat`).
 2. **Launch anytime**: Double-click `run-orix.bat` or your Desktop shortcut!
 3. **Uninstall**: Double-click `Uninstall-Orix.bat` (or `uninstall.bat`).
 
 #### 🍎 macOS & 🐧 Linux (One-Click)
-1. In your terminal or file manager, run the one-click installer:
+1. In your terminal or file manager, run:
    ```bash
    ./install.sh
    ```
-2. **Launch anytime**:
-   ```bash
-   ./run-orix.sh
-   ```
+2. **Launch anytime**: `./run-orix.sh` or simply `orix`.
 3. **Uninstall**: Run `./uninstall.sh`.
 
-#### 🌐 Universal Cross-Platform (Any OS)
-If you prefer running a single cross-platform script:
+#### 🌐 Universal Cross-Platform (Any Device / OS)
+Run the cross-platform Python installer:
 ```bash
 python install.py
 ```
 
 ---
 
-### 3. What the One-Click Installers Do Automatically
+### 4. What the One-Click Installers Do Automatically
 - **Environment Detection**: Detects and validates 64-bit Python 3.10+ without modifying your host system.
 - **Full Isolation**: Creates a dedicated `.venv` virtual environment so your global Python packages remain completely untouched.
 - **Dependency Linking**: Installs all core packages and CLI entry points in editable mode (`pip install -e .`).
@@ -211,7 +225,7 @@ python install.py
 
 ---
 
-### 4. Verify System Health
+### 5. Verify System Health
 
 Run the diagnostic suite to ensure all dependencies, tools, and models are operational:
 

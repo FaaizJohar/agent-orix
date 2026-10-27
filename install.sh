@@ -1,16 +1,47 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Agent Orix - Universal One-Click Installer for macOS & Linux
+# Agent Orix - Universal One-Click & One-Line Installer for macOS & Linux
+# Supports both local execution and piped execution:
+#   curl -sSL https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.sh | bash
 # ==============================================================================
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+# Detect if running from an existing repository or via remote pipe (curl | bash)
+if [ -n "${BASH_SOURCE[0]}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR=""
+fi
 
-echo "======================================================================"
-echo "                    AGENT ORIX - INSTALLER"
-echo "       Conversational Terminal AI & Local Workspace Assistant"
-echo "======================================================================"
+if [ -z "$SCRIPT_DIR" ] || [ ! -f "$SCRIPT_DIR/pyproject.toml" ]; then
+    INSTALL_DIR="${ORIX_HOME:-$HOME/.agent-orix}"
+    echo "======================================================================"
+    echo "                    AGENT ORIX - INSTALLER"
+    echo "       Conversational Terminal AI & Local Workspace Assistant"
+    echo "======================================================================"
+    echo "Setting up Agent Orix in: $INSTALL_DIR..."
+    mkdir -p "$INSTALL_DIR"
+    if command -v git >/dev/null 2>&1; then
+        if [ -d "$INSTALL_DIR/.git" ]; then
+            echo "[*] Updating existing repository in $INSTALL_DIR..."
+            git -C "$INSTALL_DIR" pull --quiet
+        else
+            echo "[*] Downloading Agent Orix repository..."
+            git clone --depth 1 https://github.com/FaaizJohar/agent-orix.git "$INSTALL_DIR"
+        fi
+    else
+        echo "[*] Downloading Agent Orix archive..."
+        curl -sSL https://github.com/FaaizJohar/agent-orix/archive/refs/heads/main.tar.gz | tar -xz -C "$INSTALL_DIR" --strip-components=1
+    fi
+    SCRIPT_DIR="$INSTALL_DIR"
+else
+    echo "======================================================================"
+    echo "                    AGENT ORIX - INSTALLER"
+    echo "       Conversational Terminal AI & Local Workspace Assistant"
+    echo "======================================================================"
+fi
+
+cd "$SCRIPT_DIR"
 echo ""
 
 # Step 1: Detect Python 3.10+
@@ -101,20 +132,31 @@ EOF
 chmod +x "$SCRIPT_DIR/run-orix.sh"
 echo "[OK] Created launcher: $SCRIPT_DIR/run-orix.sh"
 
+if [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin" 2>/dev/null; then
+    ln -sf "$SCRIPT_DIR/run-orix.sh" "$HOME/.local/bin/orix"
+    echo "[OK] Created command: $HOME/.local/bin/orix"
+fi
+
 echo ""
 echo "======================================================================"
 echo "                     INSTALLATION COMPLETE!"
 echo "======================================================================"
 echo ""
 echo "You can start Agent Orix anytime by running:"
-echo "  ./run-orix.sh"
+echo "  $SCRIPT_DIR/run-orix.sh"
+if [ -f "$HOME/.local/bin/orix" ]; then
+    echo "or simply:"
+    echo "  orix"
+fi
 echo ""
 
 if [ "$NON_INTERACTIVE" = "1" ]; then
     exit 0
 fi
 
-read -p "Would you like to launch Agent Orix now? (y/N): " -r LAUNCH_NOW || true
-if [[ "$LAUNCH_NOW" =~ ^[Yy]$ ]]; then
-    exec "$SCRIPT_DIR/run-orix.sh"
+if [ -t 0 ]; then
+    read -p "Would you like to launch Agent Orix now? (y/N): " -r LAUNCH_NOW || true
+    if [[ "$LAUNCH_NOW" =~ ^[Yy]$ ]]; then
+        exec "$SCRIPT_DIR/run-orix.sh"
+    fi
 fi
