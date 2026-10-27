@@ -176,18 +176,37 @@ Agent Orix includes a comprehensive test suite (`tests/test_conversational_scena
 
 ### 2. One-Line Instant Install (No Manual Cloning Needed)
 
-You do **not** even need to download or clone the repository manually. Simply paste the one-line command into your terminal:
+You do **not** even need to download or clone the repository manually. Simply copy and paste the one-line command for your device:
 
-#### 🍎 macOS & 🐧 Linux (One-Line Bash Install)
+#### 🪟 Windows — Command Prompt (CMD)
+If you are in classic Command Prompt (`C:\Users\...>`):
+```cmd
+powershell -c "irm https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.ps1 | iex"
+```
+
+#### 🪟 Windows — PowerShell
+If you are in PowerShell (`PS C:\Users\...>`):
+```powershell
+irm https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.ps1 | iex
+```
+
+#### 🍎 macOS & 🐧 Linux (Terminal)
 ```bash
 curl -sSL https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.sh | bash
 ```
 
-#### 🪟 Windows (One-Line PowerShell Install)
-```powershell
-irm https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.ps1 | iex
-```
-*(Or in Windows Command Prompt / Run: `powershell -c "irm https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.ps1 | iex"`)*
+#### 📱 Mobile Devices (Android & iOS)
+
+- **Android (Termux)**: Open Termux and paste:
+  ```bash
+  pkg update -y && pkg install -y python git curl && curl -sSL https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.sh | bash
+  ```
+  *After install, simply type `orix` from any directory in Termux!*
+
+- **iOS (iPhone & iPad)**: Open [a-Shell](https://apps.apple.com/app/a-shell/id1473805438) (free terminal from App Store) and run:
+  ```bash
+  curl -sSL https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.sh | bash
+  ```
 
 ---
 

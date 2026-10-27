@@ -47,7 +47,7 @@ echo ""
 # Step 1: Detect Python 3.10+
 echo "[1/5] Checking Python installation..."
 PYTHON_BIN=""
-for cmd in python3.12 python3.11 python3.10 python3; do
+for cmd in python3.12 python3.11 python3.10 python3 python; do
     if command -v "$cmd" >/dev/null 2>&1; then
         if "$cmd" -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)" 2>/dev/null; then
             PYTHON_BIN="$cmd"
@@ -132,7 +132,10 @@ EOF
 chmod +x "$SCRIPT_DIR/run-orix.sh"
 echo "[OK] Created launcher: $SCRIPT_DIR/run-orix.sh"
 
-if [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin" 2>/dev/null; then
+if [ -n "$PREFIX" ] && [ -d "$PREFIX/bin" ]; then
+    ln -sf "$SCRIPT_DIR/run-orix.sh" "$PREFIX/bin/orix"
+    echo "[OK] Created Android Termux command: $PREFIX/bin/orix"
+elif [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin" 2>/dev/null; then
     ln -sf "$SCRIPT_DIR/run-orix.sh" "$HOME/.local/bin/orix"
     echo "[OK] Created command: $HOME/.local/bin/orix"
 fi
