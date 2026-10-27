@@ -179,13 +179,14 @@ Agent Orix includes a comprehensive test suite (`tests/test_conversational_scena
 You do **not** even need to download or clone the repository manually. Simply copy and paste the one-line command for your device:
 
 #### 🪟 Windows — Command Prompt (CMD)
-If you are in classic Command Prompt (`C:\Users\...>`):
+If your terminal prompt shows `C:\Users\...>`:
 ```cmd
-powershell -c "irm https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.ps1 | iex"
+curl -sSL https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.bat -o "%TEMP%\install.bat" && "%TEMP%\install.bat"
 ```
+*(Or with Git: `git clone https://github.com/FaaizJohar/agent-orix.git && cd agent-orix && install.bat`)*
 
 #### 🪟 Windows — PowerShell
-If you are in PowerShell (`PS C:\Users\...>`):
+If your terminal prompt shows `PS C:\Users\...>`:
 ```powershell
 irm https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.ps1 | iex
 ```

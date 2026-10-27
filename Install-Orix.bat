@@ -158,12 +158,25 @@ if "%NON_INTERACTIVE%"=="1" (
     exit /b 0
 )
 
-:: Optional Desktop Shortcut creation via PowerShell
+:: Optional Desktop Shortcut creation via PowerShell or VBScript
 set "CREATE_SHORTCUT=N"
 set /p "CREATE_SHORTCUT=Would you like to create a Desktop shortcut? (Y/n): "
 if /i "!CREATE_SHORTCUT!"=="Y" (
     powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut([System.IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'Agent Orix.lnk')); $s.TargetPath = '%SCRIPT_DIR%\run-orix.bat'; $s.WorkingDirectory = '%SCRIPT_DIR%'; $s.Save()" >nul 2>&1
-    if !ERRORLEVEL! EQU 0 (
+    if !ERRORLEVEL! NEQ 0 (
+        set "VBS_PATH=%TEMP%\create_shortcut.vbs"
+        (
+            echo Set ws = CreateObject^("WScript.Shell"^)
+            echo desktop = ws.SpecialFolders^("Desktop"^)
+            echo Set s = ws.CreateShortcut^(desktop ^& "\Agent Orix.lnk"^)
+            echo s.TargetPath = "%SCRIPT_DIR%\run-orix.bat"
+            echo s.WorkingDirectory = "%SCRIPT_DIR%"
+            echo s.Save
+        ) > "!VBS_PATH!"
+        cscript //nologo "!VBS_PATH!" >nul 2>&1
+        del /f /q "!VBS_PATH!" >nul 2>&1
+    )
+    if exist "%USERPROFILE%\Desktop\Agent Orix.lnk" (
         echo [OK] Desktop shortcut 'Agent Orix' created.
     ) else (
         echo [INFO] Could not create desktop shortcut. You can launch Orix using run-orix.bat.
