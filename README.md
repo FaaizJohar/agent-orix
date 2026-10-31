@@ -9,8 +9,8 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Conversational Scenarios](https://img.shields.io/badge/Conversational%20Scenarios-13%2F13%20Verified-brightgreen.svg)](#verified-conversational-scenarios)
-[![Tools](https://img.shields.io/badge/Registered%20Tools-46-green.svg)](#registered-developer-tools)
+[![Conversational Scenarios](https://img.shields.io/badge/Conversational%20Scenarios-18%2F18%20Verified-brightgreen.svg)](#verified-conversational-scenarios)
+[![Tools](https://img.shields.io/badge/Registered%20Tools-50-green.svg)](#registered-developer-tools)
 [![Workflows](https://img.shields.io/badge/Domain%20Workflows-3%20Active-magenta.svg)](#multi-step-domain-workflows)
 [![Security](https://img.shields.io/badge/HMAC%20Approval-Enforced-red.svg)](#security-and-human-approval-barrier)
 
@@ -181,9 +181,9 @@ You do **not** even need to download or clone the repository manually. Simply co
 #### 🪟 Windows — Command Prompt (CMD)
 If your terminal prompt shows `C:\Users\...>`:
 ```cmd
-curl -sSL https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.bat -o "%TEMP%\install.bat" && "%TEMP%\install.bat"
+powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.ps1 | iex"
 ```
-*(Or with Git: `git clone https://github.com/FaaizJohar/agent-orix.git && cd agent-orix && install.bat`)*
+*(Alternative without PowerShell: `curl -sSL https://raw.githubusercontent.com/FaaizJohar/agent-orix/main/install.bat -o "%TEMP%\install.bat" && "%TEMP%\install.bat"`)*
 
 #### 🪟 Windows — PowerShell
 If your terminal prompt shows `PS C:\Users\...>`:
