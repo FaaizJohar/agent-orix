@@ -103,6 +103,8 @@ class OllamaClient:
                 "temperature": temperature,
                 "num_predict": max_tokens,
                 "num_ctx": context_tokens,
+                "repeat_penalty": 1.15,
+                "repeat_last_n": 64,
             },
         }
         if system_override:
@@ -146,6 +148,8 @@ class OllamaClient:
                 "temperature": temperature,
                 "num_predict": max_tokens,
                 "num_ctx": context_tokens,
+                "repeat_penalty": 1.15,
+                "repeat_last_n": 64,
             },
         }
         if system_override:

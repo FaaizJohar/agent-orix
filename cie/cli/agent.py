@@ -25,6 +25,17 @@ from cie.schemas import CIERequest, CIEResponse
 logger = logging.getLogger("cie.cli.agent")
 
 
+def deduplicate_loops(text: str) -> str:
+    """Detects and trims degenerate repetitive token loops in model outputs."""
+    pattern = re.compile(r'((?:[^\n]{10,80}?))\s*(?:\1\s*){3,}', re.IGNORECASE)
+    match = pattern.search(text)
+    if match:
+        phrase = match.group(1).strip()
+        start = match.start()
+        return text[:start] + phrase + "\n\n*(Repetitive sequence trimmed)*"
+    return text
+
+
 class ConversationalAgent:
     """
     Conversational agent engine that interprets natural language requests,
@@ -152,9 +163,10 @@ class ConversationalAgent:
             return resp
 
         # -----------------------------------------------------------------
-        # 0c. Build Website: "build me a website", "create a website"
+        # 0c. Build Website: "build me a website", "build an html css website about yourself"
         # -----------------------------------------------------------------
-        if any(phrase in p_lower for phrase in ["build me a website", "create a website", "make a website", "build a website"]):
+        website_match = re.search(r"\b(?:build|create|make|generate)\s+(?:an?\s+)?(?:[\w\s-]+\s+)?(?:website|webpage|web page|landing page|portfolio|site)\b", p_lower)
+        if website_match:
             notify("[Designing responsive website structure...]")
             approved = True
             token = None
@@ -168,7 +180,7 @@ class ConversationalAgent:
                 self.update_history("user", user_prompt)
                 self.update_history("assistant", resp)
                 return resp
-            resp = await self._build_website(notify)
+            resp = await self._build_website(notify, topic=user_prompt)
             self.update_history("user", user_prompt)
             self.update_history("assistant", resp)
             return resp
@@ -664,6 +676,7 @@ class ConversationalAgent:
             clean_answer = re.sub(r"[a-zA-Z]:\\[^\s\)\`\]\>]+", "[local documentation]", clean_answer)
             clean_answer = re.sub(r"[ \t]+", " ", clean_answer)
             clean_answer = re.sub(r"\n{3,}", "\n\n", clean_answer).strip()
+            clean_answer = deduplicate_loops(clean_answer)
 
             # Ensure generic refusals are NEVER returned to user
             generic_refusal_patterns = [
@@ -698,8 +711,29 @@ class ConversationalAgent:
         p_clean = prompt.strip()
         p_lower = p_clean.lower()
 
+        # 00. Play / Stream queries: "play fairy tale in chrome via youtube", "play bohemian rhapsody on youtube"
+        play_kw = re.search(r"\b(?:play|listen\s+to|stream)\s+(.+)$", p_lower)
+        if play_kw:
+            raw_target = play_kw.group(1).strip()
+            app_req = "chrome"
+            raw_target = re.sub(r"\s+(?:in|using)\s+(?:chrome|google\s+chrome|browser)\b", "", raw_target).strip()
+            raw_target = re.sub(r"\s+(?:on|via)\s+(?:youtube|yt)\b", "", raw_target).strip()
+            raw_target = re.sub(r"\s+(?:in|using)\s+(?:chrome|google\s+chrome|browser)\b", "", raw_target).strip()
+            query = raw_target.strip(" '\"")
+            if query and query not in ("this song", "my song", "a song", "song", "music", "video", "something"):
+                encoded = urllib.parse.quote_plus(query)
+                url = f"https://www.youtube.com/results?search_query={encoded}"
+                return {
+                    "tool_name": "desktop_launch_app",
+                    "app_name": app_req,
+                    "display_name": "Google Chrome" if "chrome" in app_req else app_req.title(),
+                    "display_target": f"YouTube search for '{query}'",
+                    "args": [url],
+                    "url": url,
+                }
+
         # 0. YouTube Search with specified query: "search youtube for <song>" or "search for <song> on youtube"
-        yt_search = re.search(r"\b(?:search\s+youtube\s+for|search\s+for\s+(.+)\s+on\s+youtube|search\s+on\s+youtube\s+for)\s*(.*)$", p_lower)
+        yt_search = re.search(r"\b(?:search\s+youtube\s+for|search\s+for\s+(.+)\s+(?:on|via)\s+youtube|search\s+(?:on|via)\s+youtube\s+for)\s*(.*)$", p_lower)
         if yt_search:
             q1 = yt_search.group(1) or ""
             q2 = yt_search.group(2) or ""
@@ -827,10 +861,27 @@ class ConversationalAgent:
             self.context["pending_action"] = None
             return f"Error executing tool to open {display_target}: {e}"
 
-    async def _build_website(self, notify: Callable[[str], None]) -> str:
-        """Builds a complete, modern responsive single-file website (HTML/CSS/JS) in the workspace."""
+    async def _build_website(self, notify: Callable[[str], None], topic: str = "") -> str:
+        """Builds a complete, modern responsive website (HTML/CSS/JS) in the workspace."""
         from cie.skills.tools.file_tools import file_write_text
         index_file = self.workspace / "index.html"
+        self.context["last_target_file"] = index_file
+
+        is_about_orix = any(k in topic.lower() for k in ["yourself", "about you", "about yourself", "orix", "who are you"])
+        if is_about_orix:
+            page_title = "Agent Orix — Terminal AI Assistant & Coding Partner"
+            heading = "Agent Orix"
+            subhead = "Autonomous Terminal AI • Local-First Intelligence • Verified Tool Execution"
+            about_text = (
+                "I am Agent Orix, an autonomous, conversation-first terminal coding agent engineered by Cavrix Core. "
+                "I operate directly in your workspace with 50 registered tools, multi-step workflows, AST syntax verification, "
+                "cryptographic approval gates, and zero-hallucination execution."
+            )
+        else:
+            page_title = "Interactive Web Showcase"
+            heading = "Modern Responsive Web App"
+            subhead = "Generated directly into workspace by Agent Orix"
+            about_text = "A modern responsive single-page application with modular styling and interactive components."
 
         html_content = (
             "<!DOCTYPE html>\n"
@@ -838,23 +889,36 @@ class ConversationalAgent:
             "<head>\n"
             "  <meta charset=\"UTF-8\" />\n"
             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n"
-            "  <title>Agent Orix Interactive Showcase</title>\n"
+            f"  <title>{page_title}</title>\n"
             "  <style>\n"
-            "    :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; }\n"
-            "    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; }\n"
-            "    .container { background: var(--card); padding: 2.5rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-width: 500px; text-align: center; border: 1px solid #334155; }\n"
-            "    h1 { margin-top: 0; color: var(--accent); }\n"
-            "    p { color: #94a3b8; line-height: 1.6; }\n"
-            "    button { background: var(--accent); color: #0f172a; font-weight: bold; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer; transition: transform 0.1s; }\n"
-            "    button:hover { transform: scale(1.05); }\n"
-            "    #output { margin-top: 1.5rem; font-weight: 500; min-height: 1.5rem; }\n"
+            "    :root { --bg: #0a0e17; --card: #131b2e; --accent: #38bdf8; --text: #f8fafc; --muted: #94a3b8; }\n"
+            "    * { box-sizing: border-box; margin: 0; padding: 0; }\n"
+            "    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1.5rem; }\n"
+            "    .container { background: var(--card); padding: 2.5rem; border-radius: 1rem; box-shadow: 0 10px 30px rgba(0,0,0,0.6); max-width: 600px; text-align: center; border: 1px solid #1e293b; }\n"
+            "    h1 { font-size: 2rem; color: var(--accent); margin-bottom: 0.5rem; letter-spacing: -0.5px; }\n"
+            "    .subhead { color: #38bdf8; font-weight: 500; font-size: 0.95rem; margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: 1px; }\n"
+            "    p { color: var(--muted); line-height: 1.7; margin-bottom: 1.5rem; text-align: left; }\n"
+            "    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; text-align: left; }\n"
+            "    .feature-card { background: #0b1120; padding: 1rem; border-radius: 0.5rem; border: 1px solid #1e293b; }\n"
+            "    .feature-card h3 { color: #f8fafc; font-size: 1rem; margin-bottom: 0.25rem; }\n"
+            "    .feature-card p { font-size: 0.85rem; margin-bottom: 0; color: var(--muted); }\n"
+            "    button { background: var(--accent); color: #0a0e17; font-weight: bold; border: none; padding: 0.75rem 1.75rem; border-radius: 0.5rem; cursor: pointer; transition: transform 0.15s, background 0.15s; font-size: 1rem; }\n"
+            "    button:hover { transform: translateY(-2px); background: #7dd3fc; }\n"
+            "    #output { margin-top: 1.5rem; font-weight: 500; min-height: 1.5rem; color: #4ade80; }\n"
             "  </style>\n"
             "</head>\n"
             "<body>\n"
             "  <div class=\"container\">\n"
-            "    <h1>Built by Agent Orix</h1>\n"
-            "    <p>A responsive, modern single-page web application generated directly into the workspace.</p>\n"
-            "    <button id=\"actionBtn\">Click Me</button>\n"
+            f"    <h1>{heading}</h1>\n"
+            f"    <div class=\"subhead\">{subhead}</div>\n"
+            f"    <p>{about_text}</p>\n"
+            "    <div class=\"features\">\n"
+            "      <div class=\"feature-card\"><h3>⚡ 50 Registered Tools</h3><p>Full suite of AST, file, git, and execution tools.</p></div>\n"
+            "      <div class=\"feature-card\"><h3>🛡️ Cryptographic HMAC</h3><p>Replay-protected authorization gates.</p></div>\n"
+            "      <div class=\"feature-card\"><h3>🔄 Multi-Turn Context</h3><p>Follow-up memory across conversation turns.</p></div>\n"
+            "      <div class=\"feature-card\"><h3>🧠 Truth Preservation</h3><p>Strict anti-sycophancy and fact verification.</p></div>\n"
+            "    </div>\n"
+            "    <button id=\"actionBtn\">Run Interactive Test</button>\n"
             "    <div id=\"output\"></div>\n"
             "  </div>\n"
             "  <script>\n"
@@ -863,7 +927,7 @@ class ConversationalAgent:
             "    let count = 0;\n"
             "    btn.addEventListener('click', () => {\n"
             "      count++;\n"
-            "      output.textContent = `Interactivity verified! Button clicked ${count} time(s).`;\n"
+            "      output.textContent = `Interactive verification active: ${count} event(s) processed.`;\n"
             "    });\n"
             "  </script>\n"
             "</body>\n"
