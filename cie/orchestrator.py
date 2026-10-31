@@ -5,6 +5,7 @@ Coordinates intent routing, context budgeting, concurrency semaphores, and step 
 
 import asyncio
 import logging
+import re
 import time
 from typing import List, Optional
 import psutil
@@ -464,7 +465,6 @@ class CIEOrchestrator:
             # Determine arguments
             args = req.metadata.get("arguments", {})
             if not args:
-                import re
                 if tool_name == "python_ast_validate":
                     code_match = re.search(r"```(?:python)?\n([\s\S]*?)```", sanitized_prompt)
                     if code_match:

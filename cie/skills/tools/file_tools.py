@@ -361,3 +361,231 @@ def file_search_text(
         truncated=truncated,
         error=None,
     )
+
+
+# -------------------------------------------------------------
+# File Write and Targeted Patch Tools
+# -------------------------------------------------------------
+import difflib
+
+
+class FileWriteTextInput(BaseModel):
+    file_path: str = Field(..., description="Path to the file to create or write")
+    content: str = Field(..., description="Full text content to write to the file")
+    encoding: str = Field(default="utf-8", description="Character encoding (default: utf-8)")
+
+
+class FileWriteTextOutput(BaseModel):
+    file_path: str
+    bytes_written: int
+    lines_written: int
+    diff: str
+    is_new_file: bool
+    error: Optional[str] = None
+
+
+def file_write_text(
+    file_path: str,
+    content: str,
+    encoding: str = "utf-8",
+) -> FileWriteTextOutput:
+    """
+    Safely writes full text content to a local file within permitted workspace roots.
+    Validates path containment, blocks sensitive files, and returns a unified diff.
+    """
+    try:
+        abs_path = validate_safe_path(file_path, must_exist=False)
+    except PathSecurityError as pse:
+        return FileWriteTextOutput(
+            file_path=file_path,
+            bytes_written=0,
+            lines_written=0,
+            diff="",
+            is_new_file=False,
+            error=f"Security/Path error: {str(pse)}",
+        )
+    except Exception as e:
+        return FileWriteTextOutput(
+            file_path=file_path,
+            bytes_written=0,
+            lines_written=0,
+            diff="",
+            is_new_file=False,
+            error=f"Path resolution error: {str(e)}",
+        )
+
+    if is_sensitive_filename(abs_path.name):
+        return FileWriteTextOutput(
+            file_path=str(abs_path),
+            bytes_written=0,
+            lines_written=0,
+            diff="",
+            is_new_file=False,
+            error=f"Access denied: Target file '{abs_path.name}' is sensitive or protected.",
+        )
+
+    is_new = not abs_path.exists()
+    old_content = ""
+    is_crlf = False
+
+    if not is_new:
+        try:
+            with open(abs_path, "rb") as bf:
+                raw_bytes = bf.read()
+                is_crlf = b"\r\n" in raw_bytes
+            old_content = abs_path.read_text(encoding=encoding, errors="replace")
+        except Exception as e:
+            old_content = ""
+
+    # Normalize line endings to match original file convention
+    normalized_content = content
+    if is_crlf:
+        normalized_content = normalized_content.replace("\r\n", "\n").replace("\n", "\r\n")
+
+    # Generate unified diff
+    old_lines = old_content.splitlines(keepends=True)
+    new_lines = normalized_content.splitlines(keepends=True)
+    diff = "".join(
+        difflib.unified_diff(
+            old_lines,
+            new_lines,
+            fromfile=f"a/{abs_path.name}",
+            tofile=f"b/{abs_path.name}",
+        )
+    )
+
+    try:
+        abs_path.parent.mkdir(parents=True, exist_ok=True)
+        abs_path.write_text(normalized_content, encoding=encoding, errors="replace")
+        written_bytes = abs_path.stat().st_size
+        written_lines = len(new_lines)
+    except Exception as e:
+        return FileWriteTextOutput(
+            file_path=str(abs_path),
+            bytes_written=0,
+            lines_written=0,
+            diff="",
+            is_new_file=is_new,
+            error=f"Failed to write file: {str(e)}",
+        )
+
+    return FileWriteTextOutput(
+        file_path=str(abs_path),
+        bytes_written=written_bytes,
+        lines_written=written_lines,
+        diff=diff,
+        is_new_file=is_new,
+        error=None,
+    )
+
+
+class FilePatchTextInput(BaseModel):
+    file_path: str = Field(..., description="Path to the file to patch")
+    target: str = Field(..., description="Exact character sequence to be replaced")
+    replacement: str = Field(..., description="Replacement text")
+    encoding: str = Field(default="utf-8", description="Character encoding (default: utf-8)")
+
+
+class FilePatchTextOutput(BaseModel):
+    file_path: str
+    occurrences_replaced: int
+    diff: str
+    error: Optional[str] = None
+
+
+def file_patch_text(
+    file_path: str,
+    target: str,
+    replacement: str,
+    encoding: str = "utf-8",
+) -> FilePatchTextOutput:
+    """
+    Performs targeted snippet search-and-replace in a file within permitted workspace roots.
+    Preserves line endings and encoding, blocks sensitive files, and returns a unified diff.
+    """
+    try:
+        abs_path = validate_safe_path(file_path, must_exist=True, must_be_file=True)
+    except PathSecurityError as pse:
+        return FilePatchTextOutput(
+            file_path=file_path,
+            occurrences_replaced=0,
+            diff="",
+            error=f"Security/Path error: {str(pse)}",
+        )
+    except Exception as e:
+        return FilePatchTextOutput(
+            file_path=file_path,
+            occurrences_replaced=0,
+            diff="",
+            error=f"File access error: {str(e)}",
+        )
+
+    if is_sensitive_filename(abs_path.name):
+        return FilePatchTextOutput(
+            file_path=str(abs_path),
+            occurrences_replaced=0,
+            diff="",
+            error=f"Access denied: Target file '{abs_path.name}' is sensitive or protected.",
+        )
+
+    try:
+        with open(abs_path, "rb") as bf:
+            raw_bytes = bf.read()
+            is_crlf = b"\r\n" in raw_bytes
+        old_content = abs_path.read_text(encoding=encoding, errors="replace")
+    except Exception as e:
+        return FilePatchTextOutput(
+            file_path=str(abs_path),
+            occurrences_replaced=0,
+            diff="",
+            error=f"Failed to read file for patching: {str(e)}",
+        )
+
+    if target not in old_content:
+        # Check normalized newline match
+        t_norm = target.replace("\r\n", "\n")
+        o_norm = old_content.replace("\r\n", "\n")
+        if t_norm not in o_norm:
+            return FilePatchTextOutput(
+                file_path=str(abs_path),
+                occurrences_replaced=0,
+                diff="",
+                error=f"Target snippet not found in '{abs_path.name}'. Exact match is required.",
+            )
+        # Apply on normalized and re-crlf
+        occurrences = o_norm.count(t_norm)
+        new_content = o_norm.replace(t_norm, replacement.replace("\r\n", "\n"))
+        if is_crlf:
+            new_content = new_content.replace("\n", "\r\n")
+    else:
+        occurrences = old_content.count(target)
+        new_content = old_content.replace(target, replacement)
+
+    # Generate unified diff
+    old_lines = old_content.splitlines(keepends=True)
+    new_lines = new_content.splitlines(keepends=True)
+    diff = "".join(
+        difflib.unified_diff(
+            old_lines,
+            new_lines,
+            fromfile=f"a/{abs_path.name}",
+            tofile=f"b/{abs_path.name}",
+        )
+    )
+
+    try:
+        abs_path.write_text(new_content, encoding=encoding, errors="replace")
+    except Exception as e:
+        return FilePatchTextOutput(
+            file_path=str(abs_path),
+            occurrences_replaced=0,
+            diff="",
+            error=f"Failed to write patched file: {str(e)}",
+        )
+
+    return FilePatchTextOutput(
+        file_path=str(abs_path),
+        occurrences_replaced=occurrences,
+        diff=diff,
+        error=None,
+    )

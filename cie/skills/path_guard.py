@@ -74,7 +74,8 @@ def is_sensitive_path(path_str: str) -> Tuple[bool, str]:
 def get_default_allowed_roots() -> List[Path]:
     """Returns canonical permitted filesystem roots for CIE operations."""
     roots = [
-        Path(r"E:\cavrix_cie").resolve(),
+        Path(r"E:\agent-orix").resolve() if Path(r"E:\agent-orix").exists() else None,
+        Path(r"E:\cavrix_cie").resolve() if Path(r"E:\cavrix_cie").exists() else None,
         Path(r"E:\cavrix_code").resolve() if Path(r"E:\cavrix_code").exists() else None,
         Path(r"E:\nox ai").resolve() if Path(r"E:\nox ai").exists() else None,
         Path(r"E:\CavrixCode-latest").resolve() if Path(r"E:\CavrixCode-latest").exists() else None,

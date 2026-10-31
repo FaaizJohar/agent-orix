@@ -3,7 +3,7 @@ Grounded prompt construction, evidence sufficiency checking, and citation verifi
 """
 
 import re
-from typing import List, Tuple, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 from cie.knowledge.schemas import KnowledgeEvidencePackage, KnowledgeSearchResult
 
 
@@ -133,6 +133,7 @@ class KnowledgeGrounding:
         clean_answer = CHUNK_CITATION_PATTERN.sub("", generated_answer)
         clean_answer = re.sub(r"\[(?:Doc\s*\d+[_\s-]*)?Chunk\s*\d+\]", "", clean_answer, flags=re.IGNORECASE)
         clean_answer = re.sub(r"Doc_\d+_Chunk_\d+", "", clean_answer, flags=re.IGNORECASE)
+        clean_answer = re.sub(r"\bDoc(?:ument)?_?\s*\d+\b", "", clean_answer, flags=re.IGNORECASE)
 
         # Suppress any local absolute filesystem paths (Windows E:\ or Unix /path/)
         clean_answer = re.sub(r"[a-zA-Z]:\\[^\s\)\`\]\>]+", "[local documentation]", clean_answer)
@@ -157,3 +158,27 @@ class KnowledgeGrounding:
             enriched_answer = clean_answer
 
         return verified, unverified, enriched_answer
+
+    @classmethod
+    def format_grounded_response(
+        cls,
+        query: str,
+        raw_text: str,
+        sources: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        """Convenience method to format and sanitize a grounded response."""
+        from cie.knowledge.schemas import KnowledgeEvidencePackage, KnowledgeSearchResult
+        chunks = []
+        if sources:
+            for i, s in enumerate(sources):
+                chunks.append(KnowledgeSearchResult(
+                    chunk_identifier=s.get("chunk_identifier", f"Chunk {i+1}"),
+                    title=s.get("title", "Document"),
+                    source_path=s.get("path", ""),
+                    collection="default",
+                    content=s.get("content", ""),
+                    score=1.0,
+                ))
+        pkg = KnowledgeEvidencePackage(query=query, chunks=chunks)
+        _, _, enriched = cls.validate_citations(raw_text, pkg)
+        return enriched

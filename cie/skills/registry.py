@@ -85,6 +85,17 @@ def build_default_registry() -> SkillRegistry:
         FileSearchTextInput,
         FileSearchTextOutput,
         file_search_text,
+        FileWriteTextInput,
+        FileWriteTextOutput,
+        file_write_text,
+        FilePatchTextInput,
+        FilePatchTextOutput,
+        file_patch_text,
+    )
+    from cie.skills.tools.command_tools import (
+        ProjectCommandRunInput,
+        ProjectCommandRunOutput,
+        project_command_run,
     )
     from cie.skills.tools.document_tools import (
         DocumentExtractTextInput,
@@ -303,6 +314,63 @@ def build_default_registry() -> SkillRegistry:
             output_schema=FileSearchTextOutput.model_json_schema(),
         ),
         file_search_text,
+    )
+
+    # 8c. file_write_text
+    registry.register(
+        ToolDefinition(
+            name="file_write_text",
+            display_name="Safe File Text Writer",
+            description="Safely writes or overwrites full text content to a local file within permitted workspace roots.",
+            permission=PermissionLevel.LOCAL_WRITE,
+            risk=RiskLevel.MEDIUM,
+            requires_approval=True,
+            timeout_seconds=10.0,
+            rate_limit_per_minute=60,
+            input_model=FileWriteTextInput,
+            output_model=FileWriteTextOutput,
+            input_schema=FileWriteTextInput.model_json_schema(),
+            output_schema=FileWriteTextOutput.model_json_schema(),
+        ),
+        file_write_text,
+    )
+
+    # 8d. file_patch_text
+    registry.register(
+        ToolDefinition(
+            name="file_patch_text",
+            display_name="Targeted File Snippet Patcher",
+            description="Performs exact snippet search-and-replace in a file within permitted workspace roots.",
+            permission=PermissionLevel.LOCAL_WRITE,
+            risk=RiskLevel.MEDIUM,
+            requires_approval=True,
+            timeout_seconds=10.0,
+            rate_limit_per_minute=60,
+            input_model=FilePatchTextInput,
+            output_model=FilePatchTextOutput,
+            input_schema=FilePatchTextInput.model_json_schema(),
+            output_schema=FilePatchTextOutput.model_json_schema(),
+        ),
+        file_patch_text,
+    )
+
+    # 8e. project_command_run
+    registry.register(
+        ToolDefinition(
+            name="project_command_run",
+            display_name="Safe Project Command Runner",
+            description="Executes project build and test commands with bounded timeouts and destructive command protection.",
+            permission=PermissionLevel.LOCAL_WRITE,
+            risk=RiskLevel.MEDIUM,
+            requires_approval=False,
+            timeout_seconds=60.0,
+            rate_limit_per_minute=30,
+            input_model=ProjectCommandRunInput,
+            output_model=ProjectCommandRunOutput,
+            input_schema=ProjectCommandRunInput.model_json_schema(),
+            output_schema=ProjectCommandRunOutput.model_json_schema(),
+        ),
+        project_command_run,
     )
 
     # 9. readme_extract
