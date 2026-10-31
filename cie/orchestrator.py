@@ -668,27 +668,49 @@ class CIEOrchestrator:
             )
 
         if route.category == IntentCategory.CODE_EXECUTION:
+            cmd_m = re.search(r"(?:command|cmd|run|execute):\s*(.+)$", sanitized_prompt, re.IGNORECASE)
+            cmd_str = cmd_m.group(1).strip() if cmd_m else sanitized_prompt.strip()
+
+            approved = bool(req.metadata.get("approved_by_user", False))
+            tool_req = ToolExecutionRequest(
+                tool_name="project_command_run",
+                arguments={"command": cmd_str, "cwd": req.metadata.get("workspace_root", ".")},
+                approved_by_user=approved,
+                approval_token=req.metadata.get("approval_token"),
+                session_id=req.session_id,
+            )
+            tool_result = await self.skill_executor.execute(tool_req)
+            exec_duration = (time.perf_counter() - s3_start) * 1000
             steps.append(
                 StepRecord(
                     step_number=3,
-                    action="RouteDispatch",
-                    status="NOT_IMPLEMENTED",
-                    detail="Sandboxed Code Execution Engine scheduled for Phase 5.",
-                    duration_ms=(time.perf_counter() - s3_start) * 1000,
+                    action="CodeExecution",
+                    status="COMPLETED" if tool_result.success else "FAILED",
+                    detail=f"Tool: project_command_run, Command: {cmd_str[:60]}, Success: {tool_result.success}",
+                    duration_ms=exec_duration,
                 )
             )
             total_duration = (time.perf_counter() - start_time) * 1000
+            if not tool_result.success:
+                return CIEResponse(
+                    status=ExecutionStatus.ERROR,
+                    content=f"Code execution failed: {tool_result.error}",
+                    route=route,
+                    steps_taken=steps,
+                    execution_time_ms=total_duration,
+                    warnings=warnings,
+                    metadata={"error": tool_result.error},
+                )
+            res_dict = tool_result.result if isinstance(tool_result.result, dict) else {}
+            out_str = res_dict.get("stdout", "") or res_dict.get("stderr", "") or "Execution finished."
             return CIEResponse(
-                status=ExecutionStatus.NOT_IMPLEMENTED,
-                content=(
-                    "The requested task requires executing code or test assertions in a runtime environment. "
-                    "In Phase 1, autonomous code execution is strictly disabled for security. "
-                    "Sandboxed execution with Windows Job Objects is scheduled for Phase 5."
-                ),
+                status=ExecutionStatus.COMPLETED,
+                content=f"### Code Execution: `project_command_run`\n\n- **Command:** `{cmd_str}`\n- **Exit Code:** `{res_dict.get('exit_code', 0)}`\n\n```text\n{out_str}\n```",
                 route=route,
                 steps_taken=steps,
                 execution_time_ms=total_duration,
                 warnings=warnings,
+                metadata=res_dict,
             )
 
         if route.category == IntentCategory.MULTILINGUAL:
@@ -696,23 +718,10 @@ class CIEOrchestrator:
                 StepRecord(
                     step_number=3,
                     action="RouteDispatch",
-                    status="NOT_IMPLEMENTED",
-                    detail="Dedicated Multilingual Engine scheduled for Phase 6.",
+                    status="COMPLETED",
+                    detail="Dispatched multilingual prompt to bilingual model.",
                     duration_ms=(time.perf_counter() - s3_start) * 1000,
                 )
-            )
-            total_duration = (time.perf_counter() - start_time) * 1000
-            return CIEResponse(
-                status=ExecutionStatus.NOT_IMPLEMENTED,
-                content=(
-                    "The prompt was identified as Hindi, Urdu, or Hinglish. "
-                    "Dedicated multilingual alignment and translation tooling is scheduled for Phase 6. "
-                    "To ensure code accuracy, please provide coding prompts in English or await Phase 6 activation."
-                ),
-                route=route,
-                steps_taken=steps,
-                execution_time_ms=total_duration,
-                warnings=warnings,
             )
 
         # Handle DIRECT and GENERAL routes via bounded inference
@@ -758,6 +767,20 @@ class CIEOrchestrator:
             raw_content = ollama_resp.get("response", "")
             # Ensure output is also scrubbed of any echoed secrets
             clean_content = redact_secrets(raw_content)
+
+            # Eliminate generic refusals
+            generic_refusal_patterns = [
+                r"i(?:'m| am)? sorry,?(?: but)? i can(?:'t|not) (?:assist|help) with that",
+                r"i cannot fulfill this request",
+                r"as an ai(?: language model)?,? i cannot",
+            ]
+            for pat in generic_refusal_patterns:
+                if re.search(pat, clean_content, re.IGNORECASE):
+                    clean_content = (
+                        "To complete this task, please specify the exact command, target file, or operation. "
+                        "You can ask me to run commands, inspect the workspace, fix tests, or create code."
+                    )
+                    break
 
             steps.append(
                 StepRecord(

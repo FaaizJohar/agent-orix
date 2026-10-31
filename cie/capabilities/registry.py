@@ -1,7 +1,7 @@
 """
 Central Capability Registry for CavrixCode.
 Tracks, manages, and validates all 30 open-source capabilities.
-Auto-populates from E:\CavrixCode-ecosystem\register.json for complete system parity.
+Auto-populates from E:\CavrixCode-ecosystem\register.json or bundled fallback for complete system parity.
 """
 
 import json
@@ -58,6 +58,8 @@ _GLOBAL_CAPABILITY_REGISTRY: Optional[CapabilityRegistry] = None
 
 def populate_from_register_json(registry: CapabilityRegistry, register_path: str = "E:/CavrixCode-ecosystem/register.json") -> None:
     p = Path(register_path)
+    if not p.exists():
+        p = Path(__file__).parent / "data" / "register.json"
     if not p.exists():
         return
 
