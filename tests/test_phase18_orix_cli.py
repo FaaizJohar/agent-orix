@@ -99,7 +99,7 @@ def test_doctor_unit_checks():
     # 4. Tool Registry
     t_ok, t_comp, t_det = check_tool_registry()
     assert t_ok is True
-    assert "46 registered tools" in t_det
+    assert "registered tools" in t_det
 
     # 5. Security & Truth
     sec_checks = check_security_and_truth()

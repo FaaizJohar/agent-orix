@@ -43,6 +43,8 @@ class ConversationalAgent:
             "proposed_improvements": [],
             "last_action_result": None,
             "last_topic": None,
+            "pending_action": None,
+            "last_action": None,
         }
         self.history: List[Dict[str, str]] = []
 
@@ -67,6 +69,36 @@ class ConversationalAgent:
         def notify(msg: str):
             if on_progress:
                 on_progress(msg)
+
+        # -----------------------------------------------------------------
+        # 0. Follow-up / Direct Confirmation of Pending or Previous Action
+        # -----------------------------------------------------------------
+        is_action_confirmation = (
+            p_lower in ("open", "do it", "yes", "yep", "yeah", "sure", "please do", "go ahead", "proceed", "execute", "ok", "okay")
+            or any(phrase in p_lower for phrase in [
+                "you have to open it", "bro you have to open it", "open it",
+                "please open it", "why haven't you opened it", "just open it",
+                "why didn't you open", "open it now"
+            ])
+        )
+        action_to_run = self.context.get("pending_action") or (self.context.get("last_action") if is_action_confirmation else None)
+        if is_action_confirmation and action_to_run:
+            self.update_history("user", user_prompt)
+            resp = await self._execute_app_or_browser_action(action_to_run, notify)
+            self.update_history("assistant", resp)
+            return resp
+
+        # -----------------------------------------------------------------
+        # 0b. Real Action Routing: "open youtube in chrome", "open notepad", "open calculator"
+        # -----------------------------------------------------------------
+        action_intent = self._detect_open_or_launch_intent(user_prompt)
+        if action_intent:
+            self.context["pending_action"] = action_intent
+            self.context["last_action"] = action_intent
+            self.update_history("user", user_prompt)
+            resp = await self._execute_app_or_browser_action(action_intent, notify)
+            self.update_history("assistant", resp)
+            return resp
 
         # -----------------------------------------------------------------
         # 1. Contextual Follow-Up: "Do the first one", "apply #1", "do option 2"
@@ -331,7 +363,10 @@ class ConversationalAgent:
 
         try:
             if self.client:
-                cie_resp = await self.client.chat(prompt=full_prompt, metadata={"workspace": str(self.workspace)})
+                cie_resp = await self.client.chat(
+                    prompt=user_prompt,
+                    metadata={"workspace": str(self.workspace), "history": self.history[-4:]}
+                )
                 answer = cie_resp.get("content", "")
             else:
                 from cie.ollama_client import OllamaClient
@@ -341,6 +376,13 @@ class ConversationalAgent:
                 answer = res.get("response", "")
 
             clean_answer = redact_secrets(answer.strip())
+            # Suppress internal paths and raw chunk tokens from reaching terminal
+            clean_answer = re.sub(r"\[(?:Doc\s*\d+[\s_-]*)?Chunk\s*\d+\]", "", clean_answer, flags=re.IGNORECASE)
+            clean_answer = re.sub(r"Doc_\d+_Chunk_\d+", "", clean_answer, flags=re.IGNORECASE)
+            clean_answer = re.sub(r"[a-zA-Z]:\\[^\s\)\`\]\>]+", "[local documentation]", clean_answer)
+            clean_answer = re.sub(r"[ \t]+", " ", clean_answer)
+            clean_answer = re.sub(r"\n{3,}", "\n\n", clean_answer).strip()
+
             self.update_history("user", user_prompt)
             self.update_history("assistant", clean_answer)
             return clean_answer
@@ -350,6 +392,112 @@ class ConversationalAgent:
             self.update_history("user", user_prompt)
             self.update_history("assistant", fallback)
             return fallback
+
+    def _detect_open_or_launch_intent(self, prompt: str) -> Optional[Dict[str, Any]]:
+        """
+        Deterministically detects requests to open or launch applications or web pages.
+        Prevents raw LLM chat hallucination for actionable system operations.
+        """
+        p_clean = prompt.strip()
+        p_lower = p_clean.lower()
+
+        # 1. YouTube in Chrome / Browser
+        yt_match = re.search(r"\b(?:open|launch|start|visit)\s+youtube(?:\s+in\s+([a-zA-Z0-9_\s]+))?\b", p_lower)
+        if yt_match:
+            app_req = yt_match.group(1).strip() if yt_match.group(1) else "chrome"
+            return {
+                "tool_name": "desktop_launch_app",
+                "app_name": app_req,
+                "display_name": "Google Chrome" if "chrome" in app_req else app_req.title(),
+                "display_target": "YouTube (https://www.youtube.com)",
+                "args": ["https://www.youtube.com"],
+                "url": "https://www.youtube.com",
+            }
+
+        # 2. Notepad
+        if re.search(r"\b(?:open|launch|start)\s+notepad\b", p_lower):
+            return {
+                "tool_name": "desktop_launch_app",
+                "app_name": "notepad",
+                "display_name": "Notepad",
+                "display_target": "Notepad",
+                "args": [],
+            }
+
+        # 3. Calculator
+        if re.search(r"\b(?:open|launch|start)\s+(?:calculator|calc)\b", p_lower):
+            return {
+                "tool_name": "desktop_launch_app",
+                "app_name": "calc",
+                "display_name": "Calculator",
+                "display_target": "Calculator",
+                "args": [],
+            }
+
+        # 4. URLs: "open https://..." or "open www...." or "browse to ..."
+        url_match = re.search(r"\b(?:open|browse\s+to|navigate\s+to|visit)\s+(https?://[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?)(?:\s+in\s+([a-zA-Z0-9_\s]+))?\b", p_lower)
+        if url_match:
+            raw_url = url_match.group(1).strip()
+            if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
+                raw_url = "https://" + raw_url
+            app_req = url_match.group(2).strip() if url_match.group(2) else "chrome"
+            return {
+                "tool_name": "desktop_launch_app",
+                "app_name": app_req,
+                "display_name": "Google Chrome" if "chrome" in app_req else app_req.title(),
+                "display_target": f"URL `{raw_url}`",
+                "args": [raw_url],
+                "url": raw_url,
+            }
+
+        # 5. Generic application: "open <app>" or "launch <app>"
+        app_match = re.search(r"\b(?:open|launch|start)\s+([a-zA-Z0-9_.-]+)\b", p_lower)
+        if app_match:
+            candidate = app_match.group(1).strip()
+            non_app_words = {
+                "file", "the", "files", "test", "tests", "bug", "bugs",
+                "project", "codebase", "session", "workspace", "terminal",
+                "this", "it", "that", "code", "document", "documents",
+                "history", "status", "doctor", "help"
+            }
+            if candidate not in non_app_words:
+                return {
+                    "tool_name": "desktop_launch_app",
+                    "app_name": candidate,
+                    "display_name": candidate.title(),
+                    "display_target": candidate.title(),
+                    "args": [],
+                }
+
+        return None
+
+    async def _execute_app_or_browser_action(self, action_dict: Dict[str, Any], notify: Callable[[str], None]) -> str:
+        """
+        Executes a real registered tool for application/browser launch and returns verified results.
+        Never fabricates success based on generated language model text.
+        """
+        app_name = action_dict.get("app_name", "")
+        display_name = action_dict.get("display_name", app_name.title())
+        display_target = action_dict.get("display_target", app_name.title())
+        args = action_dict.get("args", [])
+
+        notify(f"[Checking availability and security allowlist for {display_name}...] ")
+        notify(f"[Invoking registered tool: desktop_launch_app...] ")
+
+        try:
+            from cie.skills.tools.desktop_tools import desktop_launch_app
+            res = await desktop_launch_app(app_name=app_name, args=args)
+            if res.success:
+                self.context["pending_action"] = None
+                self.context["last_action_result"] = f"Opened {display_target}"
+                pid_info = f" (Process ID: {res.pid})" if res.pid else ""
+                return f"Successfully opened {display_target} using {display_name}{pid_info}."
+            else:
+                self.context["pending_action"] = None
+                return f"Unable to open {display_target}: {res.error}"
+        except Exception as e:
+            self.context["pending_action"] = None
+            return f"Error executing tool to open {display_target}: {e}"
 
     async def _inspect_workspace_summary(self) -> Dict[str, Any]:
         """Inspects workspace files, folders, and architecture."""

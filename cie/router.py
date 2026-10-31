@@ -38,6 +38,8 @@ RESEARCH_PATTERNS = [
 # 4. KNOWLEDGE PATTERNS (Cavrix Core corporate profile, founders, indexed docs)
 KNOWLEDGE_PATTERNS = [
     (re.compile(r"\b(cavrix\s+core|about\s+cavrix|cavrixcore\.com)\b", re.IGNORECASE), "cavrix_core_mention"),
+    (re.compile(r"\b(cavrix\s+code)\b", re.IGNORECASE), "cavrix_code_mention"),
+    (re.compile(r"\b(what\s+is\s+cavrix|tell\s+me\s+about\s+cavrix)\b", re.IGNORECASE), "cavrix_general_query"),
     (re.compile(r"\b(who\s+(founded|created|owns)\s+cavrix)\b", re.IGNORECASE), "cavrix_founders_query"),
     (re.compile(r"\b(faaiz\s+johar|mohd\s+fahad|fahad\s+multani)\b", re.IGNORECASE), "cavrix_founder_names"),
     (re.compile(r"\b(indexed\s+documents|local\s+knowledge\s+base|search\s+my\s+notes)\b", re.IGNORECASE), "local_knowledge_mention"),
@@ -66,6 +68,8 @@ SKILL_PATTERNS = [
     (re.compile(r"\b(extract\s+document|parse\s+document|extract\s+text\s+from\s+document|read\s+pdf|read\s+docx|read\s+xlsx|read\s+csv)\b", re.IGNORECASE), "document_extract_text"),
     (re.compile(r"\b(ask\s+document|according\s+to\s+document|question\s+on\s+document|document\s+qa)\b", re.IGNORECASE), "document_qa"),
     (re.compile(r"\b(open\s+url|browse\s+to|navigate\s+to|open\s+website|visit\s+website|browser\s+open)\b", re.IGNORECASE), "browser_open"),
+    (re.compile(r"\b(open|launch|start)\s+(notepad|calculator|calc|chrome|google\s+chrome|msedge|edge|firefox|brave|code|vscode|explorer)\b", re.IGNORECASE), "desktop_launch_app"),
+    (re.compile(r"\b(open|launch|start)\s+(youtube|google|github)(\s+in\s+[a-zA-Z0-9_-]+)?\b", re.IGNORECASE), "desktop_launch_app"),
     (re.compile(r"\b(browser\s+back|go\s+back\s+in\s+browser)\b", re.IGNORECASE), "browser_back"),
     (re.compile(r"\b(page\s+snapshot|accessibility\s+tree|inspect\s+page|page\s+elements|browser\s+snapshot)\b", re.IGNORECASE), "browser_get_page_snapshot"),
     (re.compile(r"\b(find\s+text\s+on\s+page|search\s+on\s+page|browser\s+find)\b", re.IGNORECASE), "browser_find_text"),

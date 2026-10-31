@@ -268,10 +268,12 @@ class CIEOrchestrator:
                     )
                 )
 
+                clean_content = redact_secrets(enriched_answer)
+                clean_content = re.sub(r"[a-zA-Z]:\\[^\s\)\`\]\>]+", "[local documentation]", clean_content)
                 total_duration = (time.perf_counter() - start_time) * 1000
                 return CIEResponse(
                     status=ExecutionStatus.COMPLETED,
-                    content=redact_secrets(enriched_answer),
+                    content=clean_content,
                     route=route,
                     steps_taken=steps,
                     execution_time_ms=total_duration,
@@ -316,6 +318,7 @@ class CIEOrchestrator:
             evidence = self.knowledge_retriever.retrieve(sanitized_prompt)
             warnings.extend(evidence.warnings)
 
+            prompt_summary = sanitized_prompt.splitlines()[0] if len(sanitized_prompt) > 80 else sanitized_prompt
             if evidence.is_empty():
                 steps.append(
                     StepRecord(
@@ -330,13 +333,39 @@ class CIEOrchestrator:
                 return CIEResponse(
                     status=ExecutionStatus.COMPLETED,
                     content=(
-                        f"The available local documentation does not establish an answer for: '{sanitized_prompt}'.\n\n"
+                        f"The available local documentation does not establish an answer for: '{prompt_summary}'.\n\n"
                         "To maintain strict factual integrity, no unverified facts or corporate claims were fabricated."
                     ),
                     route=route,
                     steps_taken=steps,
                     execution_time_ms=total_duration,
                     warnings=warnings,
+                )
+
+            # Check evidence sufficiency to prevent ungrounded small-model fabrication
+            is_sufficient, missing_topics = KnowledgeGrounding.check_evidence_sufficiency(sanitized_prompt, evidence)
+            if not is_sufficient:
+                steps.append(
+                    StepRecord(
+                        step_number=3,
+                        action="LocalKnowledgeEvidenceSufficiencyCheck",
+                        status="INSUFFICIENT_EVIDENCE",
+                        detail=f"Query subjects not found in local evidence: {missing_topics}",
+                        duration_ms=(time.perf_counter() - know_start) * 1000,
+                    )
+                )
+                total_duration = (time.perf_counter() - start_time) * 1000
+                return CIEResponse(
+                    status=ExecutionStatus.COMPLETED,
+                    content=(
+                        f"The available local documentation does not establish an answer for: '{prompt_summary}'.\n\n"
+                        "To maintain strict factual integrity, no unverified facts or corporate claims were fabricated."
+                    ),
+                    route=route,
+                    steps_taken=steps,
+                    execution_time_ms=total_duration,
+                    warnings=warnings,
+                    metadata={"missing_topics": missing_topics},
                 )
 
             # Grounded prompt construction
