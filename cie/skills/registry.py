@@ -760,11 +760,14 @@ def build_default_registry() -> SkillRegistry:
         DesktopTypeTextOutput,
         DesktopWaitForStateInput,
         DesktopWaitForStateOutput,
+        DesktopLaunchAppInput,
+        DesktopLaunchAppOutput,
     )
     from cie.skills.tools.desktop_tools import (
         desktop_click,
         desktop_get_state,
         desktop_keypress,
+        desktop_launch_app,
         desktop_list_windows,
         desktop_screenshot,
         desktop_type_text,
@@ -896,6 +899,25 @@ def build_default_registry() -> SkillRegistry:
             output_schema=DesktopWaitForStateOutput.model_json_schema(),
         ),
         desktop_wait_for_state,
+    )
+
+    # 37b. desktop_launch_app
+    registry.register(
+        ToolDefinition(
+            name="desktop_launch_app",
+            display_name="Desktop Launch Application",
+            description="Safely launches an allowlisted application (notepad, calc, chrome) with security barriers.",
+            permission=PermissionLevel.LOCAL_WRITE,
+            risk=RiskLevel.MEDIUM,
+            requires_approval=False,
+            timeout_seconds=10.0,
+            rate_limit_per_minute=30,
+            input_model=DesktopLaunchAppInput,
+            output_model=DesktopLaunchAppOutput,
+            input_schema=DesktopLaunchAppInput.model_json_schema(),
+            output_schema=DesktopLaunchAppOutput.model_json_schema(),
+        ),
+        desktop_launch_app,
     )
 
     # 38. markitdown_convert (Phase 15 Upstream Microsoft MarkItDown Integration)

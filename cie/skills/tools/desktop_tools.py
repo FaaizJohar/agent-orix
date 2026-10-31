@@ -7,9 +7,11 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from cie.desktop.manager import get_desktop_manager
+import asyncio
 from cie.desktop.schemas import (
     DesktopClickOutput,
     DesktopKeypressOutput,
+    DesktopLaunchAppOutput,
     DesktopListWindowsOutput,
     DesktopScreenshotOutput,
     DesktopStateOutput,
@@ -128,6 +130,19 @@ async def desktop_wait_for_state(
         process_name=process_name,
         timeout_seconds=timeout_seconds,
     )
+
+
+async def desktop_launch_app(
+    app_name: str,
+    args: Optional[List[str]] = None,
+    wait_seconds: float = 2.0,
+) -> DesktopLaunchAppOutput:
+    """
+    Safely launches an allowlisted application on the host desktop.
+    Enforces security boundaries, prohibited process restrictions, and SSRF filtering for URLs.
+    """
+    dm = get_desktop_manager()
+    return await asyncio.to_thread(dm.launch_app, app_name=app_name, args=args, wait_seconds=wait_seconds)
 
 
 class SWERexExecuteInput(BaseModel):

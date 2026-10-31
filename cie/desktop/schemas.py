@@ -113,3 +113,18 @@ class DesktopWaitForStateOutput(BaseModel):
     window_found: Optional[DesktopWindowInfo] = None
     elapsed_seconds: float = 0.0
     error: Optional[str] = None
+
+
+class DesktopLaunchAppInput(BaseModel):
+    app_name: str = Field(..., description="Application name or process to launch, e.g. 'notepad', 'calc', 'chrome'")
+    args: List[str] = Field(default_factory=list, description="Optional command-line arguments (e.g. URLs or file paths)")
+    wait_seconds: float = Field(default=2.0, ge=0.0, le=10.0, description="Seconds to await window appearance")
+
+
+class DesktopLaunchAppOutput(BaseModel):
+    success: bool
+    app_name: str
+    process_name: Optional[str] = None
+    pid: Optional[int] = None
+    window_found: Optional[DesktopWindowInfo] = None
+    error: Optional[str] = None

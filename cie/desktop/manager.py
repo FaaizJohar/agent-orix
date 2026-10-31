@@ -25,6 +25,8 @@ from cie.desktop.schemas import (
     DesktopClickOutput,
     DesktopKeypressInput,
     DesktopKeypressOutput,
+    DesktopLaunchAppInput,
+    DesktopLaunchAppOutput,
     DesktopListWindowsInput,
     DesktopListWindowsOutput,
     DesktopScreenshotInput,
@@ -36,7 +38,12 @@ from cie.desktop.schemas import (
     DesktopWaitForStateOutput,
     DesktopWindowInfo,
 )
-from cie.desktop.security import DesktopSecurityError, DesktopSecurityManager
+from cie.desktop.security import (
+    DesktopSecurityError,
+    DesktopSecurityManager,
+    ALLOWED_PROCESS_NAMES,
+    PROHIBITED_PROCESSES,
+)
 from cie.safety import redact_secrets
 
 logger = logging.getLogger("cie.desktop.manager")
@@ -655,6 +662,165 @@ class DesktopManager:
             elapsed_seconds=round(time.perf_counter() - start, 2),
             error=f"Timed out after {timeout_seconds}s waiting for matching desktop state.",
         )
+
+
+    def launch_app(
+        self,
+        app_name: str,
+        args: Optional[List[str]] = None,
+        wait_seconds: float = 2.0,
+    ) -> DesktopLaunchAppOutput:
+        """
+        Safely launches an allowlisted application on the host desktop.
+        Enforces:
+        - Security allowlist / prohibited process verification via DesktopSecurityManager.
+        - SSRF destination validation for any URL arguments via BrowserSecurityManager.
+        - Shell injection protection (shell=False, argument list only).
+        - Executable resolution via PATH and standard Windows application directories.
+        """
+        import shutil
+        import subprocess
+        import sys
+
+        raw_name = (app_name or "").strip().lower()
+        if not raw_name:
+            return DesktopLaunchAppOutput(
+                success=False,
+                app_name=app_name or "",
+                error="Application name cannot be empty.",
+            )
+
+        APP_ALIASES = {
+            "notepad": "notepad.exe",
+            "calculator": "calc.exe",
+            "calc": "calc.exe",
+            "chrome": "chrome.exe",
+            "google chrome": "chrome.exe",
+            "edge": "msedge.exe",
+            "msedge": "msedge.exe",
+            "microsoft edge": "msedge.exe",
+            "firefox": "firefox.exe",
+            "brave": "brave.exe",
+            "code": "code.cmd" if sys.platform == "win32" else "code",
+            "vscode": "code.cmd" if sys.platform == "win32" else "code",
+            "vs code": "code.cmd" if sys.platform == "win32" else "code",
+            "explorer": "explorer.exe",
+            "file explorer": "explorer.exe",
+        }
+
+        proc_name = APP_ALIASES.get(raw_name, raw_name)
+        if not proc_name.endswith(".exe") and sys.platform == "win32" and not proc_name.endswith(".cmd"):
+            proc_name += ".exe"
+
+        # 1. Prohibited check
+        if proc_name in PROHIBITED_PROCESSES or raw_name in PROHIBITED_PROCESSES:
+            return DesktopLaunchAppOutput(
+                success=False,
+                app_name=app_name,
+                process_name=proc_name,
+                error=f"Access to system shell or administrative process '{proc_name}' is strictly prohibited by security policy.",
+            )
+
+        # 2. Allowlist check
+        is_allowed = proc_name in ALLOWED_PROCESS_NAMES or (
+            proc_name.endswith(".cmd") and proc_name.replace(".cmd", ".exe") in ALLOWED_PROCESS_NAMES
+        )
+        if not is_allowed:
+            return DesktopLaunchAppOutput(
+                success=False,
+                app_name=app_name,
+                process_name=proc_name,
+                error=f"Application '{app_name}' ('{proc_name}') is not permitted by the application security allowlist.",
+            )
+
+        # 3. If args contain URLs, validate each URL to prevent SSRF
+        clean_args = []
+        if args:
+            for a in args:
+                a_str = str(a).strip()
+                if a_str.startswith("http://") or a_str.startswith("https://"):
+                    try:
+                        from cie.browser.security import BrowserSecurityManager
+                        valid_url, _, _ = BrowserSecurityManager.validate_destination_url(a_str)
+                        clean_args.append(valid_url)
+                    except Exception as e:
+                        return DesktopLaunchAppOutput(
+                            success=False,
+                            app_name=app_name,
+                            process_name=proc_name,
+                            error=f"URL validation failed for '{a}': {e}",
+                        )
+                else:
+                    clean_args.append(a_str)
+
+        # 4. Locate executable
+        exe_path = shutil.which(proc_name)
+        if not exe_path and sys.platform == "win32":
+            known_paths = [
+                os.path.expandvars("%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe"),
+                os.path.expandvars("%ProgramFiles(x86)%\\Google\\Chrome\\Application\\chrome.exe"),
+                os.path.expandvars("%LocalAppData%\\Google\\Chrome\\Application\\chrome.exe"),
+                os.path.expandvars("%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe"),
+                os.path.expandvars("%ProgramFiles%\\Microsoft\\Edge\\Application\\msedge.exe"),
+                os.path.expandvars("%SystemRoot%\\System32\\notepad.exe"),
+                os.path.expandvars("%SystemRoot%\\notepad.exe"),
+                os.path.expandvars("%SystemRoot%\\System32\\calc.exe"),
+            ]
+            for kp in known_paths:
+                if os.path.isfile(kp) and (kp.lower().endswith(proc_name.lower()) or proc_name.lower() in kp.lower()):
+                    exe_path = kp
+                    break
+
+            if not exe_path:
+                try:
+                    import winreg
+                    key_path = rf"Software\Microsoft\Windows\CurrentVersion\App Paths\{proc_name}"
+                    for root_key in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+                        try:
+                            with winreg.OpenKey(root_key, key_path) as k:
+                                val, _ = winreg.QueryValueEx(k, "")
+                                if val and os.path.isfile(val):
+                                    exe_path = val
+                                    break
+                        except OSError:
+                            pass
+                        if exe_path:
+                            break
+                except ImportError:
+                    pass
+
+        if not exe_path:
+            return DesktopLaunchAppOutput(
+                success=False,
+                app_name=app_name,
+                process_name=proc_name,
+                error=f"Application '{app_name}' was not found on this system.",
+            )
+
+        # 5. Launch process safely
+        try:
+            cmd = [exe_path] + clean_args
+            proc = subprocess.Popen(
+                cmd,
+                shell=False,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            logger.info(f"Launched application '{proc_name}' (PID: {proc.pid}) with args {clean_args}")
+            return DesktopLaunchAppOutput(
+                success=True,
+                app_name=app_name,
+                process_name=proc_name,
+                pid=proc.pid,
+            )
+        except Exception as e:
+            return DesktopLaunchAppOutput(
+                success=False,
+                app_name=app_name,
+                process_name=proc_name,
+                error=f"Failed to launch application '{app_name}': {e}",
+            )
 
 
 _DEFAULT_DESKTOP_MANAGER: Optional[DesktopManager] = None

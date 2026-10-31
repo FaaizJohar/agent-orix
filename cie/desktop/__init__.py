@@ -17,6 +17,8 @@ from cie.desktop.schemas import (
     DesktopWaitForStateInput,
     DesktopWaitForStateOutput,
     DesktopWindowInfo,
+    DesktopLaunchAppInput,
+    DesktopLaunchAppOutput,
 )
 from cie.desktop.security import (
     DesktopSecurityManager,
@@ -45,6 +47,8 @@ __all__ = [
     "DesktopWaitForStateInput",
     "DesktopWaitForStateOutput",
     "DesktopWindowInfo",
+    "DesktopLaunchAppInput",
+    "DesktopLaunchAppOutput",
     "ALLOWED_PROCESS_NAMES",
     "PROHIBITED_PROCESSES",
 ]

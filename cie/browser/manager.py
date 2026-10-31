@@ -123,6 +123,8 @@ class BrowserManager:
                 except Exception as e:
                     logger.debug(f"Error during stale browser cleanup: {e}")
 
+            if async_playwright is None:
+                raise BrowserSecurityError("The browser automation tool is unavailable: Playwright is not installed in the environment.")
             self._loop = current_loop
             self._playwright = await async_playwright().start()
 

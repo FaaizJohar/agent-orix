@@ -97,14 +97,19 @@ def is_ip_forbidden(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> Tu
         return True, f"Link-local / cloud metadata address '{ip_obj}' is strictly prohibited."
     if ip_obj.is_multicast:
         return True, f"Multicast address '{ip_obj}' is prohibited."
+    # Check mapped IPv4 or NAT64 translated IPv4 if IPv6
+    if isinstance(ip_obj, ipaddress.IPv6Address):
+        if ip_obj.ipv4_mapped:
+            mapped_v4 = ip_obj.ipv4_mapped
+            if mapped_v4.is_loopback or mapped_v4.is_private or mapped_v4.is_link_local:
+                return True, f"IPv4-mapped address '{ip_obj}' maps to forbidden private IPv4 '{mapped_v4}'."
+        nat64_net = ipaddress.IPv6Network("64:ff9b::/96")
+        if ip_obj in nat64_net:
+            embedded_v4 = ipaddress.IPv4Address(ip_obj.packed[-4:])
+            return is_ip_forbidden(embedded_v4)
+
     if ip_obj.is_reserved:
         return True, f"Reserved IP address '{ip_obj}' is prohibited."
-
-    # Check mapped IPv4 if IPv6
-    if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
-        mapped_v4 = ip_obj.ipv4_mapped
-        if mapped_v4.is_loopback or mapped_v4.is_private or mapped_v4.is_link_local:
-            return True, f"IPv4-mapped address '{ip_obj}' maps to forbidden private IPv4 '{mapped_v4}'."
 
     # Check against FORBIDDEN_NETWORKS
     for forbidden in FORBIDDEN_NETWORKS:
