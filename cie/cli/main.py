@@ -21,7 +21,9 @@ from cie.cli.client import LocalAgentClient, RemoteAgentClient
 from cie.cli.session import SessionManager
 
 
-console = Console()
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+console = Console(legacy_windows=False)
 
 
 def _get_client(remote: Optional[str] = None, token: Optional[str] = None):

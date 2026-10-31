@@ -35,7 +35,9 @@ class TerminalChat:
         no_banner: bool = False,
         show_mascot: bool = False,
     ):
-        self.console = Console()
+        if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
+        self.console = Console(legacy_windows=False)
         self.workspace = os.path.abspath(workspace or os.getcwd())
         self.client = client or LocalAgentClient()
         self.no_banner = no_banner

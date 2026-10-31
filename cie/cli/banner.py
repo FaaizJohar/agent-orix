@@ -1,39 +1,51 @@
 """
 Agent Orix Terminal Banner & ASCII Art.
-Provides compact, full, and gradient banners with Rich formatting and ANSI truecolor support.
+Provides compact, full, and dark ANSI block art with Rich formatting and ANSI color support.
 """
 
+import sys
 from typing import List, Optional, Tuple
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich.align import Align
 
-# Custom AGENT ORIX ASCII Art Logo
+# Custom ORIX ANSI Block Art (with BBS/demoscene dark palette colors)
+ORIX_ANSI_ART: str = (
+    "\033[0;37m                           \033[0;34m▄▄\033[0;37;44m░\033[0;34;47m▀▀\033[0;34m▄\033[0;37m              \033[0m\n"
+    "\033[0;37m                           \033[0;34m█\033[0;34;47m  \033[0;37;44m▓\033[0;34m█\033[0;37m               \033[0m\n"
+    "\033[0;37m  \033[0;30;44m▀\033[0;37;44m▄▄▄▄▄▄▄\033[0;30;44m▀\033[0;37m     \033[0;30;44m▀\033[0;37;44m▄▄▄▄▄▄▄\033[0;30;44m▀\033[0;37m  \033[0;34m█\033[0;37;44m░\033[0;34;47m░\033[0;37;44m▀\033[0;34m█\033[0;37m  \033[0;34m▄\033[0;37;44m▄▄\033[0;30;44m▀\033[0;37m    \033[0;30;44m▀\033[0;37;44m▄▄\033[0;34m▄\033[0;37m \033[0m\n"
+    "\033[0;37m \033[0;34m█\033[0;37;44m█▓█\033[0;34m█▀█\033[0;37;44m█▓█\033[0;34m█\033[0;37m   \033[0;34m█\033[0;37;44m█▓█\033[0;34m█▀█\033[0;37;44m█▓█\033[0;37m   \033[0;34m▀▀▀\033[0;37m   \033[0;34m█\033[0;37;44m█▓█\033[0;34m█\033[0;37m  \033[0;34m█\033[0;37;44m█▓█\033[0;34m█\033[0;37m \033[0m\n"
+    "\033[0;34m█\033[0;37;44m▓▒▓ \033[0;37m   \033[0;37;44m ▓▒▓\033[0;34m█\033[0;37m \033[0;34m█\033[0;37;44m▓▒▓ \033[0;34m▌\033[0;37m \033[0;34m▐\033[0;37;44m ▓▒\033[0;37m \033[0;34m▀█\033[0;34;47m▒▓▒\033[0;34m█▀\033[0;37m  \033[0;37;44m ▓▒▓\033[0;34m▌▐\033[0;37;44m▓▒▓ \033[0;37m  \033[0m\n"
+    "\033[0;34m█\033[0;37;44m▒░▒\033[0;34m▓\033[0;37m   \033[0;34m▓\033[0;37;44m▒░▒\033[0;34m█\033[0;37m \033[0;34m█\033[0;37;44m▒░▒\033[0;34m▓\033[0;37m        \033[0;34m█\033[0;34;47m▓█▓\033[0;35;44m░\033[0;37m    ▀\033[0;37;44m░▒░▀▒░\033[0;37m▀   \033[0m\n"
+    "\033[0;34m█\033[0;37;44m░ ░\033[0;34m▓\033[0;37m   \033[0;34m▓\033[0;37;44m░ ░\033[0;34m█\033[0;37m \033[0;34m█\033[0;37;44m░ ░\033[0;34m▓\033[0;37m        \033[0;34m█\033[0;34;44m \033[0;94;44m░ \033[0;35;44m▒\033[0;37m   \033[0;34m▓\033[0;37;44m░ ░\033[0;34m▌▐\033[0;37;44m░ ░\033[0;34m▓\033[0;37m  \033[0m\n"
+    "\033[0;37m \033[0;34m█\033[0;34;44m \033[0;94;44m░▒ \033[0;34m▄\033[0;94;44m ▒░\033[0;34;44m \033[0;34m█\033[0;37m  \033[0;34m██\033[0;34;44m \033[0;94;44m░░\033[0;37m        \033[0;34m█\033[0;94;44m░▒░\033[0;35;44m▓\033[0;37m  \033[0;34m▄\033[0;94;44m▒░\033[0;34;44m \033[0;35;44m■\033[0;37m  \033[0;35;44m■\033[0;34;44m \033[0;94;44m░▒\033[0;34m▄\033[0;37m \033[0m\n"
+    "\033[0;37m  \033[0;35m▀\033[0;35;44m▄▄▄\033[0;35m■\033[0;35;44m▄▄▄\033[0;35m▀\033[0;37m   \033[0;35;44m▄▄\033[0;35m▀\033[0;35;44m▄▄\033[0;37m       \033[0;34m▄█\033[0;35;44m■\033[0;34;45m▀▀ \033[0;35m▄\033[0;37m \033[0;35;44m▄▄▄\033[0;35m▀\033[0;37m    \033[0;35m▀\033[0;35;44m▄▄▄▄\033[0m"
+)
+
+# Text lines of ASCII Logo
 AGENT_ORIX_ASCII: List[str] = [
-    ".eeeeee...eeeeee..eeeeee.eeeeeee..eeeeeeeee.....eeeeee..eeeeeee..eee.eee..eee....",
-    "@@@@@@@@:@@@@@@@@:@@@@@@:@@@@@@@@:@@@@@@@@@::::@@@@@@@@:@@@@@@@@:@@@:@@@::@@@::::",
-    "%%%--%%%-%%%------%%%----%%%--%%%----%%%-------%%%--%%%-%%%--%%%-%%%-%%%--%%%----",
-    "&&&&&&&&+&&&++++++&&&&&++&&&++&&&++++&&&+++++++&&&++&&&+&&&&&&&++&&&++&&&&&&+++++",
-    "||||||||*|||*||||*|||||**|||**|||****|||*******|||**|||*||||||***|||**||||||*****",
-    "!!!==!!!=!!!==!!!=!!!====!!!==!!!====!!!=======!!!==!!!=!!!=!!!==!!!=!!!==!!!====",
-    ":::##:::#::::::::#::::::#:::##:::####:::#######::::::::#:::##:::#:::#:::##:::####",
-    "...@@...@@......@@......@...@@...@@@@...@@@@@@@@......@@...@@...@...@...@@...@@@@",
+    "                           ▄▄░▀▀▄              ",
+    "                           █  ▓█               ",
+    "  ▀▄▄▄▄▄▄▄▀     ▀▄▄▄▄▄▄▄▀  █░░▀█  ▄▄▄▀    ▀▄▄▄ ",
+    " █▓██▀██▓██   ██▓██▀██▓█   ▀▀▀   ██▓██  ██▓██ ",
+    "█▓▒▓    ▓▒▓█ █▓▒▓ ▌ ▐ ▓▒ ▀█▒▓▒█▀   ▓▒▓▌▐▓▒▓   ",
+    "█▒░▒▓   ▓▒░▒█ █▒░▒▓        █▓█▓░    ▀░▒░▀▒░▀   ",
+    "█░ ░▓   ▓░ ░█ █░ ░▓        █ ░ ▒   ▓░ ░▌▐░ ░▓  ",
+    " █ ░▒ ▄ ▒░ █  ██ ░░        █░▒░▓  ▄▒░ ■  ■ ░▒▄ ",
+    "  ▀▄▄▄■▄▄▄▀   ▄▄▀▄▄       ▄█■▀▀ ▄ ▄▄▄▀    ▀▄▄▄▄",
 ]
 
-# Legacy compact banner fallback for narrow viewports
 COMPACT_BANNER: str = "\n".join(AGENT_ORIX_ASCII)
-
-# Subtitle and metadata
 AGENT_SUBTITLE = "Agent Orix — Interactive Terminal AI & Multi-Action Engine"
 AGENT_MASCOT_URL = "https://files.catbox.moe/r1sys4.png"
 
-# Smooth diagonal gradient color stops: Electric Cyan -> Sky Blue -> Neon Purple -> Hot Pink
+# Dark aesthetic gradient stops: Deep Cyan -> Electric Blue -> Dark Indigo -> Twilight Purple
 GRADIENT_STOPS: List[Tuple[int, int, int]] = [
-    (0, 240, 255),    # Electric Cyan (#00F0FF)
-    (59, 130, 246),   # Bright Sky Blue (#3B82F6)
-    (147, 51, 234),   # Neon Purple (#9333EA)
-    (236, 72, 153),   # Hot Magenta / Pink (#EC4899)
+    (14, 116, 144),   # Dark Cyan (#0e7490)
+    (59, 130, 246),   # Royal Blue (#3b82f6)
+    (99, 102, 241),   # Dark Indigo (#6366f1)
+    (168, 85, 247),   # Deep Purple (#a855f7)
 ]
 
 FULL_MASCOT_ART = r"""
@@ -86,11 +98,15 @@ FULL_MASCOT_ART = r"""
                                            +=====                                              
 """
 
+def get_ansi_orix_logo() -> Text:
+    """Renders the custom ANSI demoscene art logo with dark color styling."""
+    try:
+        return Text.from_ansi(ORIX_ANSI_ART)
+    except Exception:
+        return Text(COMPACT_BANNER, style="bold cyan")
 
 def get_gradient_ascii_text(stops: Optional[List[Tuple[int, int, int]]] = None) -> Text:
-    """
-    Renders the Agent Orix ASCII logo with a smooth diagonal RGB gradient.
-    """
+    """Renders the Agent Orix ASCII logo with a smooth diagonal RGB dark gradient."""
     active_stops = stops or GRADIENT_STOPS
     styled = Text()
     num_rows = len(AGENT_ORIX_ASCII)
@@ -117,11 +133,8 @@ def get_gradient_ascii_text(stops: Optional[List[Tuple[int, int, int]]] = None) 
         styled.append("\n")
     return styled
 
-
 def get_gradient_ascii_ansi(stops: Optional[List[Tuple[int, int, int]]] = None) -> str:
-    """
-    Returns ANSI 24-bit truecolor formatted string of the ASCII logo.
-    """
+    """Returns ANSI 24-bit truecolor formatted string of the ASCII logo."""
     active_stops = stops or GRADIENT_STOPS
     lines: List[str] = []
     num_rows = len(AGENT_ORIX_ASCII)
@@ -146,24 +159,27 @@ def get_gradient_ascii_ansi(stops: Optional[List[Tuple[int, int, int]]] = None) 
         lines.append(row_str)
     return "\n".join(lines)
 
-
 def render_banner(
     console: Console,
     compact: bool = True,
     show_mascot: bool = False,
     version: str = "1.0.0",
     model_name: str = "cavrix-code:latest",
-    tools_count: int = 46,
+    tools_count: int = 50,
     remote_url: Optional[str] = None,
 ) -> None:
-    """
-    Renders styled banner to the provided Rich console.
-    """
+    """Renders styled banner to the provided Rich console."""
+    if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
     if show_mascot:
         console.print(Text(FULL_MASCOT_ART, style="cyan dim"))
 
-    # Render custom AGENT ORIX logo with 24-bit truecolor gradient
-    banner_text = get_gradient_ascii_text()
+    # Render ANSI demoscene art logo with dark colors
+    banner_text = get_ansi_orix_logo()
     console.print(banner_text)
 
     mode_label = f"Remote: {remote_url}" if remote_url else f"Local Engine: {model_name}"
