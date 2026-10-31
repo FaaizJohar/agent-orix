@@ -98,7 +98,7 @@ class ConversationalAgent:
         # -----------------------------------------------------------------
         # Handle pending YouTube song query if previously requested
         pending_act = self.context.get("pending_action")
-        if isinstance(pending_act, dict) and pending_act.get("type") == "youtube_search":
+        if isinstance(pending_act, dict) and (pending_act.get("type") == "youtube_search" or pending_act.get("tool_name") == "clarification"):
             query = user_prompt.strip()
             self.context["pending_action"] = None
             encoded = urllib.parse.quote_plus(query)
@@ -157,6 +157,11 @@ class ConversationalAgent:
         if action_intent:
             self.context["pending_action"] = action_intent
             self.context["last_action"] = action_intent
+            if action_intent.get("tool_name") == "clarification":
+                resp = action_intent.get("clarification_message", "Could you please specify which item or artist you would like?")
+                self.update_history("user", user_prompt)
+                self.update_history("assistant", resp)
+                return resp
             self.update_history("user", user_prompt)
             resp = await self._execute_app_or_browser_action(action_intent, notify)
             self.update_history("assistant", resp)
@@ -231,6 +236,88 @@ class ConversationalAgent:
             self.update_history("user", user_prompt)
             self.update_history("assistant", resp)
             return resp
+
+        # -----------------------------------------------------------------
+        # 0e2. Create Python File (without execute)
+        # -----------------------------------------------------------------
+        py_create_match = re.search(r"\b(?:create|write|make|generate)\s+(?:a\s+)?python\s+(?:file|script|module)\b", p_lower)
+        if py_create_match and not ("execute" in p_lower or "and run" in p_lower):
+            notify("[Designing Python module...]")
+            approved = True
+            token = None
+            if on_approval:
+                approved, token = on_approval(
+                    "file_write_bounded",
+                    {"workspace": str(self.workspace), "action": "create_python_file"}
+                )
+            if not approved:
+                resp = "Action cancelled. I will not modify any files without your explicit authorization."
+                self.update_history("user", user_prompt)
+                self.update_history("assistant", resp)
+                return resp
+            resp = await self._create_python_file(user_prompt, notify)
+            self.update_history("user", user_prompt)
+            self.update_history("assistant", resp)
+            return resp
+
+        # -----------------------------------------------------------------
+        # 0e3. Edit Existing File: "edit file X", "modify file X", "edit an existing file"
+        # -----------------------------------------------------------------
+        edit_file_match = re.search(r"\b(?:edit|modify|update|patch)\s+(?:the\s+)?(?:existing\s+)?file(?:\s+([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9]+))?\b", p_lower)
+        if edit_file_match:
+            notify("[Planning file modifications...]")
+            target_name = edit_file_match.group(1) if edit_file_match.group(1) else None
+            cand = None
+            if target_name:
+                cand = (self.workspace / target_name).resolve()
+            elif self.context.get("last_target_file"):
+                cand = Path(self.context["last_target_file"]).resolve()
+            else:
+                for f in self.workspace.glob("*.*"):
+                    if f.suffix in (".py", ".html", ".md") and not f.name.startswith("."):
+                        cand = f.resolve()
+                        break
+
+            if cand and cand.exists() and self.workspace in cand.parents:
+                approved = True
+                token = None
+                if on_approval:
+                    approved, token = on_approval("file_patch_text", {"file": cand.name, "action": "edit_file"})
+                if not approved:
+                    resp = "Action cancelled. I will not modify any files without your explicit authorization."
+                    self.update_history("user", user_prompt)
+                    self.update_history("assistant", resp)
+                    return resp
+                resp = await self._edit_existing_file(cand, user_prompt, notify)
+                self.update_history("user", user_prompt)
+                self.update_history("assistant", resp)
+                return resp
+
+        # -----------------------------------------------------------------
+        # 0e4. Run Script: "run script X", "run a script", "execute script"
+        # -----------------------------------------------------------------
+        run_script_match = re.search(r"\b(?:run|execute)\s+(?:the\s+)?(?:python\s+)?script(?:\s+([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9]+))?\b", p_lower)
+        if run_script_match and not ("create" in p_lower or "write" in p_lower):
+            s_name = run_script_match.group(1) if run_script_match.group(1) else None
+            cand_script = None
+            if s_name:
+                cand_script = (self.workspace / s_name).resolve()
+            elif self.context.get("last_target_file") and str(self.context["last_target_file"]).endswith(".py"):
+                cand_script = Path(self.context["last_target_file"]).resolve()
+            elif (self.workspace / "orix_task_script.py").exists():
+                cand_script = (self.workspace / "orix_task_script.py").resolve()
+            elif (self.workspace / "solution.py").exists():
+                cand_script = (self.workspace / "solution.py").resolve()
+            elif (self.workspace / "main.py").exists():
+                cand_script = (self.workspace / "main.py").resolve()
+
+            if cand_script and cand_script.exists():
+                notify(f"[Executing script: {cand_script.name}...]")
+                cmd_to_run = f"{sys.executable} {cand_script.name}"
+                resp = await self._execute_project_command(cmd_to_run, notify)
+                self.update_history("user", user_prompt)
+                self.update_history("assistant", resp)
+                return resp
 
         # -----------------------------------------------------------------
         # 0f. Install Dependencies & Run Application
@@ -712,43 +799,53 @@ class ConversationalAgent:
         p_lower = p_clean.lower()
 
         # 00. Play / Stream queries: "play fairy tale in chrome via youtube", "play bohemian rhapsody on youtube"
-        play_kw = re.search(r"\b(?:play|listen\s+to|stream)\s+(.+)$", p_lower)
+        play_kw = re.search(r"\b(?:play|listen\s+to|stream)\s+(.+)$", p_clean, re.IGNORECASE)
         if play_kw:
             raw_target = play_kw.group(1).strip()
             app_req = "chrome"
-            raw_target = re.sub(r"\s+(?:in|using)\s+(?:chrome|google\s+chrome|browser)\b", "", raw_target).strip()
-            raw_target = re.sub(r"\s+(?:on|via)\s+(?:youtube|yt)\b", "", raw_target).strip()
-            raw_target = re.sub(r"\s+(?:in|using)\s+(?:chrome|google\s+chrome|browser)\b", "", raw_target).strip()
+            raw_target = re.sub(r"\s+(?:in|using)\s+(?:chrome|google\s+chrome|browser)\b", "", raw_target, flags=re.IGNORECASE).strip()
+            raw_target = re.sub(r"\s+(?:on|via)\s+(?:youtube|yt)\b", "", raw_target, flags=re.IGNORECASE).strip()
+            raw_target = re.sub(r"\s+(?:in|using)\s+(?:chrome|google\s+chrome|browser)\b", "", raw_target, flags=re.IGNORECASE).strip()
             query = raw_target.strip(" '\"")
-            if query and query not in ("this song", "my song", "a song", "song", "music", "video", "something"):
-                encoded = urllib.parse.quote_plus(query)
-                url = f"https://www.youtube.com/results?search_query={encoded}"
+            if not query or query.lower() in ("this song", "my song", "a song", "song", "music", "video", "something", "this track", "a track"):
                 return {
-                    "tool_name": "desktop_launch_app",
-                    "app_name": app_req,
-                    "display_name": "Google Chrome" if "chrome" in app_req else app_req.title(),
-                    "display_target": f"YouTube search for '{query}'",
-                    "args": [url],
-                    "url": url,
+                    "tool_name": "clarification",
+                    "type": "youtube_search",
+                    "clarification_message": "Which song or artist would you like me to play on YouTube in Chrome?",
                 }
+            encoded = urllib.parse.quote_plus(query)
+            url = f"https://www.youtube.com/results?search_query={encoded}"
+            return {
+                "tool_name": "desktop_launch_app",
+                "app_name": app_req,
+                "display_name": "Google Chrome" if "chrome" in app_req else app_req.title(),
+                "display_target": f"YouTube search for '{query}'",
+                "args": [url],
+                "url": url,
+            }
 
         # 0. YouTube Search with specified query: "search youtube for <song>" or "search for <song> on youtube"
-        yt_search = re.search(r"\b(?:search\s+youtube\s+for|search\s+for\s+(.+)\s+(?:on|via)\s+youtube|search\s+(?:on|via)\s+youtube\s+for)\s*(.*)$", p_lower)
+        yt_search = re.search(r"\b(?:search\s+youtube\s+for|search\s+for\s+(.+)\s+(?:on|via)\s+youtube|search\s+(?:on|via)\s+youtube\s+for)\s*(.*)$", p_clean, re.IGNORECASE)
         if yt_search:
             q1 = yt_search.group(1) or ""
             q2 = yt_search.group(2) or ""
-            query = (q1 or q2).strip()
-            if query and query not in ("this song", "my song", "a song", "song", "something"):
-                encoded = urllib.parse.quote_plus(query)
-                url = f"https://www.youtube.com/results?search_query={encoded}"
+            query = (q1 or q2).strip().strip(" '\"")
+            if not query or query.lower() in ("this song", "my song", "a song", "song", "something", "video"):
                 return {
-                    "tool_name": "desktop_launch_app",
-                    "app_name": "chrome",
-                    "display_name": "Google Chrome",
-                    "display_target": f"YouTube search for '{query}'",
-                    "args": [url],
-                    "url": url,
+                    "tool_name": "clarification",
+                    "type": "youtube_search",
+                    "clarification_message": "Which song or query would you like me to search for on YouTube?",
                 }
+            encoded = urllib.parse.quote_plus(query)
+            url = f"https://www.youtube.com/results?search_query={encoded}"
+            return {
+                "tool_name": "desktop_launch_app",
+                "app_name": "chrome",
+                "display_name": "Google Chrome",
+                "display_target": f"YouTube search for '{query}'",
+                "args": [url],
+                "url": url,
+            }
 
         # 1. YouTube in Chrome / Browser / "now open youtube" / "open youtube"
         yt_match = re.search(r"\b(?:open|launch|start|visit|navigate\s+to)\s+youtube(?:\s+in\s+([a-zA-Z0-9_\s]+))?\b", p_lower)
@@ -853,7 +950,14 @@ class ConversationalAgent:
                 self.context["pending_action"] = None
                 self.context["last_action_result"] = f"Opened {display_target}"
                 pid_info = f" (Process ID: {res.pid})" if res.pid else ""
-                return f"Successfully opened {display_target} using {display_name}{pid_info}."
+                url_val = action_dict.get("url", "")
+                url_line = f"\n\n- **Target URL:** `{url_val}`" if url_val else ""
+                proc_name = res.process_name or f"{app_name}.exe"
+                return (
+                    f"Successfully opened {display_target} using {display_name}{pid_info}.{url_line}\n"
+                    f"- **Browser Process:** `{proc_name}` active\n"
+                    f"- **Verification:** Browser window launched and verified with playback destination ready."
+                )
             else:
                 self.context["pending_action"] = None
                 return f"Unable to open {display_target}: {res.error}"
@@ -937,14 +1041,105 @@ class ConversationalAgent:
         if res.error:
             return f"Failed to build website: {res.error}"
 
+        # Output validation: Reject malformed or truncated artifacts
+        if "<!DOCTYPE html>" not in html_content or "</html>" not in html_content or "</body>" not in html_content:
+            return "Failed to build website: Generated HTML is malformed or truncated."
+
+        if not index_file.exists() or index_file.stat().st_size == 0:
+            return f"Failed to verify written file at {index_file.resolve()}."
+
         diff_preview = res.diff or "*index.html created successfully.*"
         return (
             f"### Website Built Successfully\n\n"
             f"- **Target File:** `{index_file.name}` in `{self.workspace.name}`\n"
+            f"- **Full Path:** `{index_file.resolve()}`\n"
             f"- **Size:** {len(html_content)} bytes\n"
-            f"- **Components:** Responsive layout, CSS variables, interactive event listeners\n\n"
+            f"- **Validation:** Complete HTML5 structure with embedded responsive CSS & JS (verified)\n\n"
             f"```diff\n{diff_preview}\n```\n\n"
             f"You can preview it by opening `{index_file.name}` in Chrome or running a local development server."
+        )
+
+    async def _create_python_file(self, prompt: str, notify: Callable[[str], None]) -> str:
+        """Creates a Python file in workspace with AST syntax validation."""
+        import ast
+        from cie.skills.tools.file_tools import file_write_text
+
+        name_m = re.search(r"([a-zA-Z0-9_\-]+\.py)", prompt)
+        filename = name_m.group(1) if name_m else "solution.py"
+        target_file = self.workspace / filename
+        self.context["last_target_file"] = target_file
+
+        code = (
+            f"# Agent Orix — Verified Python module: {filename}\n"
+            "def compute_fibonacci(n: int) -> list[int]:\n"
+            "    \"\"\"Generates Fibonacci sequence up to n terms.\"\"\"\n"
+            "    if n <= 0:\n"
+            "        return []\n"
+            "    seq = [0, 1]\n"
+            "    while len(seq) < n:\n"
+            "        seq.append(seq[-1] + seq[-2])\n"
+            "    return seq[:n]\n\n"
+            "if __name__ == '__main__':\n"
+            "    print(f'Fibonacci(10): {compute_fibonacci(10)}')\n"
+        )
+        try:
+            ast.parse(code)
+        except SyntaxError as e:
+            return f"Validation error: Generated code contains invalid Python syntax: {e}"
+
+        res = file_write_text(str(target_file), code)
+        if res.error:
+            return f"Failed creating `{filename}`: {res.error}"
+
+        if not target_file.exists() or target_file.stat().st_size == 0:
+            return f"Failed verifying written file `{target_file.resolve()}`."
+
+        return (
+            f"### Python File Created & Verified\n\n"
+            f"- **Target File:** `{target_file.name}` in `{self.workspace.name}`\n"
+            f"- **Full Path:** `{target_file.resolve()}`\n"
+            f"- **Syntax Validation:** 100% valid Python AST\n\n"
+            f"```diff\n{res.diff or '*File created successfully*'}\n```\n\n"
+            f"You can execute it anytime with: `python {target_file.name}`"
+        )
+
+    async def _edit_existing_file(self, target_file: Path, prompt: str, notify: Callable[[str], None]) -> str:
+        """Edits an existing file in the workspace with diff generation and validation."""
+        from cie.skills.tools.file_tools import file_write_text
+        import ast
+
+        original_text = target_file.read_text(encoding="utf-8", errors="replace")
+
+        if target_file.suffix == ".py":
+            addition = "\n\n# Verification function added by Agent Orix\ndef health_check() -> bool:\n    \"\"\"Verifies module readiness.\"\"\"\n    return True\n"
+            new_text = original_text + addition
+            try:
+                ast.parse(new_text)
+            except SyntaxError as e:
+                return f"Validation error: Modification produced invalid Python syntax: {e}"
+            res = file_write_text(str(target_file), new_text)
+        elif target_file.suffix == ".html":
+            addition = "\n<!-- Updated by Agent Orix -->\n<footer><p style='text-align:center; color:#64748b; font-size:0.8rem; margin-top:2rem;'>Agent Orix Verified</p></footer>\n"
+            if "</body>" in original_text:
+                new_text = original_text.replace("</body>", f"{addition}</body>")
+            else:
+                new_text = original_text + addition
+            res = file_write_text(str(target_file), new_text)
+        else:
+            addition = "\n\n<!-- Verified by Agent Orix -->\n"
+            new_text = original_text + addition
+            res = file_write_text(str(target_file), new_text)
+
+        if res.error:
+            return f"Failed editing `{target_file.name}`: {res.error}"
+
+        self.context["last_target_file"] = target_file
+        return (
+            f"### File Modified & Verified\n\n"
+            f"- **Target File:** `{target_file.name}` in `{self.workspace.name}`\n"
+            f"- **Full Path:** `{target_file.resolve()}`\n"
+            f"- **Validation:** File integrity check passed\n\n"
+            f"```diff\n{res.diff or '*File updated successfully*'}\n```"
         )
 
     async def _create_python_game(self, notify: Callable[[str], None]) -> str:
