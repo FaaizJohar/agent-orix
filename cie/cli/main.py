@@ -108,14 +108,15 @@ def run(
     sess_mgr.add_message(sid, "user", prompt, metadata={"workspace": ws})
 
     async def _execute():
-        return await client.chat(prompt=prompt, session_id=sid, metadata={"workspace": ws})
+        from cie.cli.agent import ConversationalAgent
+        agent = ConversationalAgent(client=client, workspace=ws)
+        return await agent.handle_message(prompt)
 
-    resp = asyncio.run(_execute())
-    content = resp.get("content", "")
-    sess_mgr.add_message(sid, "assistant", content, metadata={"status": resp.get("status")})
+    content = asyncio.run(_execute())
+    sess_mgr.add_message(sid, "assistant", content, metadata={"status": "COMPLETED"})
 
     if output_format == "json":
-        click.echo(json.dumps(resp, indent=2))
+        click.echo(json.dumps({"content": content, "status": "COMPLETED"}, indent=2))
     else:
         from rich.markdown import Markdown
         console.print(Markdown(content))
